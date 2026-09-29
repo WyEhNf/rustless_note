@@ -1,0 +1,1 @@
+import Link from "@/lib/reading-link";export default function NotFound(){return <main id="main" className="container about-page"><p className="eyebrow">404</p><h1>这篇笔记还没有找到。</h1><p>可以回到目录，继续阅读其他文章。</p><Link className="text-link" href="/series">查看全部文章 →</Link></main>}

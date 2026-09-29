@@ -1,0 +1,779 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rx AST 架构总图</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f5f8fc,#101a2a);--fg:light-dark(#1b2e48,#e5edf9);--surface:light-dark(#fff,#17263b);--border:light-dark(#c5d2e2,#39516b)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px 'Microsoft YaHei',sans-serif}header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--border)}h1{font-size:18px;margin:0 auto 0 0}button,a{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;text-decoration:none}button:hover,a:hover{border-color:#5280c7}#stage{height:calc(100dvh - 72px);min-height:350px;overflow:auto;touch-action:pan-x pan-y}#sheet{transform-origin:top left}#sheet svg{display:block}#status{min-width:45px;font-variant-numeric:tabular-nums}.hint{font-size:13px;opacity:.8}button:focus-visible,a:focus-visible{outline:3px solid #5280c7;outline-offset:2px}@media(max-width:700px){header{padding:10px}.hint{display:none}#stage{height:calc(100dvh - 112px)}}
+</style></head><body><header><h1>Rx AST · 一张图读懂结构与构建</h1><span class="hint">滚动浏览 · Ctrl + 滚轮缩放 · 点击 ↩ 跳到子树</span><button id="minus" aria-label="缩小">−</button><span id="status"></span><button id="plus" aria-label="放大">＋</button><button id="fit">适合宽度</button><button id="read">阅读尺寸</button><a id="download" download="rx-ast-atlas.svg">下载 SVG</a></header><main id="stage" aria-label="可缩放的完整 AST 总图"><div id="extent"><div id="sheet"><svg xmlns="http://www.w3.org/2000/svg" width="3000" height="4420" viewBox="0 0 3000 4420" role="img" aria-labelledby="title desc">
+<title id="title">Rx AST 架构总图：结构、子节点与构建操作</title>
+<desc id="desc">一张图展开全部五种顶层项、三种语句、二十一种表达式和四种类型。连线同时标示存储字段和 frontend.cpp 的构建操作。虚线表示可选形态，不表示额外 AST 节点；回指标记表示递归子树。</desc>
+<style>
+svg{--bg:#f5f8fc;--surface:#fff;--ink:#1b2e48;--muted:#51657f;--border:#c5d2e2;--line:#7d93ae;--op:#376199;--labelbg:#f5f8fc;background:var(--bg);font-family:'Microsoft YaHei','PingFang SC',sans-serif;color:var(--ink)}
+text{fill:var(--ink)} .hero{font-size:43px;font-weight:700}.subtitle{font-size:23px;fill:var(--muted)}
+.section-no{font-size:27px;fill:#2563ba;font-weight:700}.section-title{font-size:28px;font-weight:700}.muted{font-size:19px;fill:var(--muted)}
+.node-title{font-size:24px;font-weight:600}.body{font-size:19px;fill:var(--muted)}.tag{font-size:15px;fill:var(--muted)}
+.edge{fill:none;stroke:var(--line);stroke-width:2}.variant{stroke-dasharray:7 6}.edge-label{font-size:18px;paint-order:stroke;stroke:var(--labelbg);stroke-width:7;stroke-linejoin:round}.op{font-size:17px;fill:var(--op);font-family:Consolas,monospace;paint-order:stroke;stroke:var(--labelbg);stroke-width:6;stroke-linejoin:round}
+.lane{fill:var(--surface);fill-opacity:.45;stroke:var(--border);stroke-width:1;rx:18}.tiny{font-size:17px;fill:var(--muted)}
+a{cursor:pointer}a:hover rect{stroke:#2563ba;stroke-width:3}
+@media(prefers-color-scheme:dark){svg{--bg:#101a2a;--surface:#17263b;--ink:#e5edf9;--muted:#b6c6dc;--border:#39516b;--line:#8ba2bd;--op:#a8c9ff;--labelbg:#101a2a}}
+</style><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--line)"/></marker></defs>
+<rect width="3000" height="4420" fill="var(--bg)"/>
+<text x="65" y="73" class="hero" >Rx · AST 架构总图</text>
+<text x="65" y="118" class="subtitle" >节点看结构，连线看构建；从 crate 读到具体 expression，再沿 ↩ 回指继续递归。</text>
+<text x="65" y="161" class="muted" >实线 → 存储子节点      虚线 ⇢ 选择一种形态 / 分派      ↩ → 同一种子树的再次出现      [] 多个 · ? 可选</text>
+<text x="65" y="195" class="muted" >连线第一行：字段 / 结构关系；第二行：构建函数调用路径。灰色属性为节点数据，不是额外的树节点。</text>
+<text x="65" y="263" class="section-no" >01</text>
+<text x="129" y="263" class="section-title" >顶层声明</text>
+<text x="129" y="295" class="muted" >crate.items[] 中每个 item 取下面五种形式之一；源码顺序保持不变。</text>
+<g id="crate" class="node" data-title="crate · 整个程序">
+<rect x="1190" y="325" width="570" height="122" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1206 326H1744" stroke="#2563ba" stroke-width="4"/>
+<text x="1210" y="360" class="node-title" >crate · 整个程序</text>
+<text x="1210" y="391" class="body" >items[]：导入、结构体、函数、常量、impl</text>
+</g>
+<text x="1220" y="316" class="op" >parse_source → parser.crate() → build</text>
+<path d="M1475 447V475H310M1475 475H2650" class="edge"/>
+<path d="M310 475V512.5H310V550" class="edge variant" marker-end="url(#arrow)"/>
+<text x="322" y="500.5" class="edge-label" >item 的一种</text>
+<text x="322" y="525.5" class="op" >build_use</text>
+<g id="use" class="node" data-title="use · 导入">
+<rect x="90" y="550" width="440" height="125" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M106 551H514" stroke="#2563ba" stroke-width="4"/>
+<text x="110" y="585" class="node-title" >use · 导入</text>
+<text x="110" y="616" class="body" >text：导入树的文本</text>
+<text x="110" y="643" class="body" >无 AST 子节点</text>
+</g>
+<path d="M895 475V512.5H895V550" class="edge variant" marker-end="url(#arrow)"/>
+<text x="907" y="500.5" class="edge-label" >item 的一种</text>
+<text x="907" y="525.5" class="op" >build_struct</text>
+<g id="struct-decl" class="node" data-title="struct · 结构体声明">
+<rect x="675" y="550" width="440" height="125" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M691 551H1099" stroke="#2563ba" stroke-width="4"/>
+<text x="695" y="585" class="node-title" >struct · 结构体声明</text>
+<text x="695" y="616" class="body" >name：名称；derives：派生列表</text>
+<text x="695" y="643" class="body" >lifetime_parameters：生命周期名</text>
+</g>
+<path d="M1480 475V512.5H1480V550" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1492" y="500.5" class="edge-label" >item 的一种</text>
+<text x="1492" y="525.5" class="op" >build_function</text>
+<g id="function" class="node" data-title="function · 函数">
+<rect x="1260" y="550" width="440" height="125" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1276 551H1684" stroke="#2563ba" stroke-width="4"/>
+<text x="1280" y="585" class="node-title" >function · 函数</text>
+<text x="1280" y="616" class="body" >name；生命周期参数</text>
+<text x="1280" y="643" class="body" >self / &amp;self / &amp;mut self：标志位</text>
+</g>
+<path d="M2065 475V512.5H2065V550" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2077" y="500.5" class="edge-label" >item 的一种</text>
+<text x="2077" y="525.5" class="op" >build_constant(item)</text>
+<g id="constant" class="node" data-title="const · 常量声明">
+<rect x="1845" y="550" width="440" height="125" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1861 551H2269" stroke="#2563ba" stroke-width="4"/>
+<text x="1865" y="585" class="node-title" >const · 常量声明</text>
+<text x="1865" y="616" class="body" >name：名称</text>
+<text x="1865" y="643" class="body" >type + value：声明类型与值</text>
+</g>
+<path d="M2650 475V512.5H2650V550" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2662" y="500.5" class="edge-label" >item 的一种</text>
+<text x="2662" y="525.5" class="op" >build_impl</text>
+<g id="impl" class="node" data-title="impl · 关联项">
+<rect x="2430" y="550" width="440" height="125" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2446 551H2854" stroke="#2563ba" stroke-width="4"/>
+<text x="2450" y="585" class="node-title" >impl · 关联项</text>
+<text x="2450" y="616" class="body" >target：所属类型</text>
+<text x="2450" y="643" class="body" >生命周期参数；关联函数与常量</text>
+</g>
+<path d="M895 675V725H895V775" class="edge" marker-end="url(#arrow)"/>
+<text x="907" y="713" class="edge-label" >fields[]</text>
+<text x="907" y="738" class="op" >内联创建 field + stamp</text>
+<g class="node" data-title="field · 声明字段">
+<rect x="720" y="775" width="350" height="94" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M736 776H1054" stroke="#2563ba" stroke-width="4"/>
+<text x="740" y="810" class="node-title" >field · 声明字段</text>
+<text x="740" y="841" class="body" >name：字段名</text>
+</g>
+<path d="M895 869V913H895V957" class="edge" marker-end="url(#arrow)"/>
+<text x="907" y="901" class="edge-label" >type</text>
+<text x="907" y="926" class="op" >build_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="720" y="957" width="350" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M736 958H1054" stroke="#b2691d" stroke-width="4"/>
+<text x="740" y="992" class="node-title" >type ↩</text>
+<text x="740" y="1023" class="body" >字段的声明类型</text>
+</a>
+</g>
+<path d="M2065 675V725H1970V775" class="edge" marker-end="url(#arrow)"/>
+<text x="2029.5" y="713" class="edge-label" >type</text>
+<text x="2029.5" y="738" class="op" >build_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="1835" y="775" width="280" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1851 776H2099" stroke="#b2691d" stroke-width="4"/>
+<text x="1855" y="810" class="node-title" >type ↩</text>
+<text x="1855" y="841" class="body" >常量声明类型</text>
+</a>
+</g>
+<path d="M2065 675V816H2270V957" class="edge" marker-end="url(#arrow)"/>
+<text x="2179.5" y="804" class="edge-label" >value</text>
+<text x="2179.5" y="829" class="op" >build_constant(value)</text>
+<g class="node" data-title="常量 expression ↩">
+<a href="#const-values" data-jump="const-values">
+<rect x="2120" y="957" width="305" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2136 958H2409" stroke="#7550ae" stroke-width="4"/>
+<text x="2140" y="992" class="node-title" >常量 expression ↩</text>
+<text x="2140" y="1023" class="body" >整数 / 布尔 / path / 负号</text>
+</a>
+</g>
+<path d="M2650 675V725H2650V775" class="edge" marker-end="url(#arrow)"/>
+<text x="2662" y="713" class="edge-label" >target</text>
+<text x="2662" y="738" class="op" >build_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="2490" y="775" width="350" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2506 776H2824" stroke="#b2691d" stroke-width="4"/>
+<text x="2510" y="810" class="node-title" >type ↩</text>
+<text x="2510" y="841" class="body" >impl 的目标类型</text>
+</a>
+</g>
+<path d="M2650 866V911.5H2650V957" class="edge" marker-end="url(#arrow)"/>
+<text x="2662" y="899.5" class="edge-label" >functions[] / constants[]</text>
+<text x="2662" y="924.5" class="op" >build_function /</text>
+<text x="2662" y="947.5" class="op" >build_constant(item)</text>
+<g class="node" data-title="function / const ↩">
+<a href="#function" data-jump="function">
+<rect x="2490" y="957" width="350" height="118" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2506 958H2824" stroke="#2563ba" stroke-width="4"/>
+<text x="2510" y="992" class="node-title" >function / const ↩</text>
+<text x="2510" y="1023" class="body" >结构与顶层声明相同</text>
+<text x="2510" y="1050" class="body" >函数参数可包含 self</text>
+</a>
+</g>
+<path d="M1480 675V710H1200M1480 710H1660" class="edge"/>
+<path d="M1200 710V742.5H1200V775" class="edge" marker-end="url(#arrow)"/>
+<text x="1212" y="730.5" class="edge-label" >parameters[]</text>
+<text x="1212" y="755.5" class="op" >build_parameter</text>
+<g class="node" data-title="parameter · 参数">
+<rect x="1080" y="775" width="270" height="94" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1096 776H1334" stroke="#b2691d" stroke-width="4"/>
+<text x="1100" y="810" class="node-title" >parameter · 参数</text>
+<text x="1100" y="841" class="body" >name；is_mutable</text>
+</g>
+<path d="M1215 869V913H1215V957" class="edge" marker-end="url(#arrow)"/>
+<text x="1227" y="901" class="edge-label" >type</text>
+<text x="1227" y="926" class="op" >build_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="1095" y="957" width="240" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1111 958H1319" stroke="#b2691d" stroke-width="4"/>
+<text x="1115" y="992" class="node-title" >type ↩</text>
+<text x="1115" y="1023" class="body" >普通参数类型</text>
+</a>
+</g>
+<path d="M1660 710V742.5H1660V775" class="edge" marker-end="url(#arrow)"/>
+<text x="1672" y="730.5" class="edge-label" >result</text>
+<text x="1672" y="755.5" class="op" >build_type / unit_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="1520" y="775" width="285" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1536 776H1789" stroke="#b2691d" stroke-width="4"/>
+<text x="1540" y="810" class="node-title" >type ↩</text>
+<text x="1540" y="841" class="body" >返回类型；省略时为 ()</text>
+</a>
+</g>
+<path d="M1480 675V887.5H1480V1100" class="edge" marker-end="url(#arrow)"/>
+<text x="1492" y="875.5" class="edge-label" >body · 函数体</text>
+<text x="1492" y="900.5" class="op" >build_block</text>
+<g id="block" class="node" data-title="block · 块表达式">
+<rect x="1255" y="1100" width="450" height="116" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1271 1101H1689" stroke="#137b73" stroke-width="4"/>
+<text x="1275" y="1135" class="node-title" >block · 块表达式</text>
+<text x="1275" y="1166" class="body" >statements[]：所有语句，保持源码顺序</text>
+<text x="1275" y="1193" class="body" >尾表达式也包装成最后一个 stmt</text>
+</g>
+<text x="65" y="1135" class="section-no" >02</text>
+<text x="129" y="1135" class="section-title" >块与语句</text>
+<text x="129" y="1167" class="muted" >block 是 expression 的一种；这里展开函数体中的 block。</text>
+<path d="M1480 1216V1250H790M1480 1250H2170" class="edge"/>
+<path d="M790 1250V1300H790V1350" class="edge" marker-end="url(#arrow)"/>
+<text x="802" y="1288" class="edge-label" >statements[] · 三种 stmt</text>
+<text x="802" y="1313" class="op" >build_statement</text>
+<g class="node" data-title="empty · 空语句">
+<rect x="615" y="1350" width="440" height="124" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M631 1351H1039" stroke="#137b73" stroke-width="4"/>
+<text x="635" y="1385" class="node-title" >empty · 空语句</text>
+<text x="635" y="1416" class="body" >只有一个分号 ;</text>
+<text x="635" y="1443" class="body" >无子节点</text>
+</g>
+<path d="M1480 1250V1300H1480V1350" class="edge" marker-end="url(#arrow)"/>
+<text x="1492" y="1288" class="edge-label" >statements[] · 三种 stmt</text>
+<text x="1492" y="1313" class="op" >build_statement → build_let</text>
+<g class="node" data-title="let · 局部绑定">
+<rect x="1305" y="1350" width="440" height="124" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1321 1351H1729" stroke="#137b73" stroke-width="4"/>
+<text x="1325" y="1385" class="node-title" >let · 局部绑定</text>
+<text x="1325" y="1416" class="body" >name；is_mutable；分号为 true</text>
+<text x="1325" y="1443" class="body" >annotation?；expression</text>
+</g>
+<path d="M2170 1250V1300H2170V1350" class="edge" marker-end="url(#arrow)"/>
+<text x="2182" y="1288" class="edge-label" >statements[] · 三种 stmt</text>
+<text x="2182" y="1313" class="op" >build_statement / build_block（尾项）</text>
+<g class="node" data-title="expr stmt · 表达式语句">
+<rect x="1995" y="1350" width="440" height="124" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2011 1351H2419" stroke="#137b73" stroke-width="4"/>
+<text x="2015" y="1385" class="node-title" >expr stmt · 表达式语句</text>
+<text x="2015" y="1416" class="body" >expression：语句中的表达式</text>
+<text x="2015" y="1443" class="body" >has_semicolon：是否带分号</text>
+</g>
+<text x="650" y="1516" class="muted" >空语句到此结束</text>
+<path d="M1450 1474V1532H1420V1590" class="edge" marker-end="url(#arrow)"/>
+<text x="1447" y="1520" class="edge-label" >annotation?</text>
+<text x="1447" y="1545" class="op" >build_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="1275" y="1590" width="290" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1291 1591H1549" stroke="#b2691d" stroke-width="4"/>
+<text x="1295" y="1625" class="node-title" >type ↩</text>
+<text x="1295" y="1656" class="body" >可选的局部变量类型</text>
+</a>
+</g>
+<path d="M1630 1474V1567H1900V1660" class="edge" marker-end="url(#arrow)"/>
+<text x="1777" y="1555" class="edge-label" >expression · 初值</text>
+<text x="1777" y="1580" class="op" >build_expression</text>
+<path d="M2215 1474V1567H2110V1660" class="edge" marker-end="url(#arrow)"/>
+<text x="2174.5" y="1555" class="edge-label" >expression · 语句/尾表达式</text>
+<text x="2174.5" y="1580" class="op" >build_expression /</text>
+<text x="2174.5" y="1603" class="op" >build_expression_with_block</text>
+<g id="expression" class="node" data-title="expression · 表达式">
+<rect x="1810" y="1660" width="470" height="135" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1826 1661H2264" stroke="#7550ae" stroke-width="4"/>
+<text x="1830" y="1695" class="node-title" >expression · 表达式</text>
+<text x="1830" y="1726" class="body" >每个实例只有一个 Kind</text>
+<text x="1830" y="1753" class="body" >孩子通过 operands / fields / statements 保存</text>
+<text x="1830" y="1780" class="body" >下方完整展开全部 21 种 Kind</text>
+</g>
+<text x="65" y="1695" class="section-no" >03</text>
+<text x="129" y="1695" class="section-title" >表达式展开</text>
+<text x="129" y="1727" class="muted" >按阅读目的分栏；栏标题是分组，不会额外生成 AST 节点。</text>
+<text x="130" y="1768" class="muted" >括号 (e) 直接返回内部 e；没有独立的“括号节点”。</text>
+<text x="130" y="1800" class="muted" >build_expression 按 G4 规则分派；build_primary 处理初级表达式并可继续分派。</text>
+<path d="M2045 1795V1850H340M2045 1850H2090" class="edge variant"/>
+<rect x="60" y="1990" width="555" height="1965" class="lane"/>
+<path d="M337.5 1850V1920H337.5V1990" class="edge variant" marker-end="url(#arrow)"/>
+<text x="349.5" y="1908" class="edge-label" >Kind 分组（非节点）</text>
+<text x="349.5" y="1933" class="op" >build_expression → build_primary</text>
+<text x="84" y="2034" class="section-title" >基础值与聚合值</text>
+<text x="84" y="2070" class="muted" >build_primary · 初级表达式</text>
+<path d="M337.5 2088H85V3920" class="edge variant"/>
+<rect x="645" y="1990" width="555" height="1965" class="lane"/>
+<path d="M922.5 1850V1920H922.5V1990" class="edge variant" marker-end="url(#arrow)"/>
+<text x="934.5" y="1908" class="edge-label" >Kind 分组（非节点）</text>
+<text x="934.5" y="1933" class="op" >build_expression_with_block / build_primary</text>
+<text x="669" y="2034" class="section-title" >分支与循环</text>
+<text x="669" y="2070" class="muted" >带块表达式；仍然属于 expression</text>
+<path d="M922.5 2088H670V3920" class="edge variant"/>
+<rect x="1230" y="1990" width="555" height="1965" class="lane"/>
+<path d="M1507.5 1850V1920H1507.5V1990" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1519.5" y="1908" class="edge-label" >Kind 分组（非节点）</text>
+<text x="1519.5" y="1933" class="op" >build_expression → 对应构建器</text>
+<text x="1254" y="2034" class="section-title" >运算与控制转移</text>
+<text x="1254" y="2070" class="muted" >运算符节点 + break / continue / return</text>
+<path d="M1507.5 2088H1255V3920" class="edge variant"/>
+<rect x="1815" y="1990" width="555" height="1965" class="lane"/>
+<path d="M2092.5 1850V1920H2092.5V1990" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2104.5" y="1908" class="edge-label" >Kind 分组（非节点）</text>
+<text x="2104.5" y="1933" class="op" >build_expression → build_postfix</text>
+<text x="1839" y="2034" class="section-title" >调用与访问</text>
+<text x="1839" y="2070" class="muted" >build_postfix · 按源码顺序包裹</text>
+<path d="M2092.5 2088H1840V3920" class="edge variant"/>
+<rect x="2400" y="1990" width="540" height="1965" class="lane"/>
+<text x="2420" y="1940" class="op" >所有 type ↩ → build_type</text>
+<text x="2424" y="2034" class="section-title" >type · 类型子树</text>
+<text x="2424" y="2070" class="muted" >来自声明、注解、泛型实参与 cast</text>
+<path d="M2700 2287V2330H2425V3920" class="edge variant"/>
+<path d="M85 2124V2198H125" class="edge variant" marker-end="url(#arrow)"/>
+<text x="131" y="2153" class="op" >build_primary → build_literal</text>
+<g id="integer" class="node" data-title="integer · 整数">
+<rect x="125" y="2170" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M141 2171H579" stroke="#7550ae" stroke-width="4"/>
+<text x="145" y="2205" class="node-title" >integer · 整数</text>
+<text x="145" y="2236" class="body" >text：字面量原文，例如 42i32</text>
+</g>
+<path d="M85 2294V2368H125" class="edge variant" marker-end="url(#arrow)"/>
+<text x="131" y="2323" class="op" >build_primary → build_literal</text>
+<g id="boolean" class="node" data-title="boolean · 布尔值">
+<rect x="125" y="2340" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M141 2341H579" stroke="#7550ae" stroke-width="4"/>
+<text x="145" y="2375" class="node-title" >boolean · 布尔值</text>
+<text x="145" y="2406" class="body" >text：true / false</text>
+</g>
+<path d="M85 2464V2538H125" class="edge variant" marker-end="url(#arrow)"/>
+<text x="131" y="2493" class="op" >build_primary</text>
+<g id="unit-expr" class="node" data-title="unit · 空值 ()">
+<rect x="125" y="2510" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M141 2511H579" stroke="#7550ae" stroke-width="4"/>
+<text x="145" y="2545" class="node-title" >unit · 空值 ()</text>
+<text x="145" y="2576" class="body" >没有子节点</text>
+</g>
+<path d="M85 2634V2708H125" class="edge variant" marker-end="url(#arrow)"/>
+<text x="131" y="2663" class="op" >build_primary → build_path</text>
+<g id="path-expr" class="node" data-title="path · 名称路径">
+<rect x="125" y="2680" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M141 2681H579" stroke="#7550ae" stroke-width="4"/>
+<text x="145" y="2715" class="node-title" >path · 名称路径</text>
+<text x="145" y="2746" class="body" >path：名称段，例如 Vec::new</text>
+</g>
+<path d="M145 2770V2885H170" class="edge" marker-end="url(#arrow)"/>
+<text x="164" y="2796" class="edge-label" >type_arguments[] · 类型实参</text>
+<text x="164" y="2819" class="op" >append_expression_segment</text>
+<text x="164" y="2842" class="op" >→ append_generic_arguments → build_type</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="170" y="2853" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M186 2854H574" stroke="#b2691d" stroke-width="4"/>
+<text x="190" y="2888" class="node-title" >type ↩</text>
+<text x="190" y="2919" class="body" >路径上的泛型类型参数</text>
+</a>
+</g>
+<path d="M85 3014V3088H125" class="edge variant" marker-end="url(#arrow)"/>
+<text x="131" y="3043" class="op" >build_primary → build_array</text>
+<g id="array-expr" class="node" data-title="array · 数组值">
+<rect x="125" y="3060" width="470" height="117" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M141 3061H579" stroke="#7550ae" stroke-width="4"/>
+<text x="145" y="3095" class="node-title" >array · 数组值</text>
+<text x="145" y="3126" class="body" >[a, b]：operands[] 为各元素</text>
+<text x="145" y="3153" class="body" >[e; N]：flag=true；[0]=e，[1]=N</text>
+</g>
+<path d="M145 3177V3269H170" class="edge" marker-end="url(#arrow)"/>
+<text x="164" y="3203" class="edge-label" >operands[] · 元素 / 重复次数</text>
+<text x="164" y="3226" class="op" >build_expression / build_constant(value)</text>
+<g class="node" data-title="expression ↩ / 常量 ↩">
+<a href="#expression" data-jump="expression">
+<rect x="170" y="3237" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M186 3238H574" stroke="#7550ae" stroke-width="4"/>
+<text x="190" y="3272" class="node-title" >expression ↩ / 常量 ↩</text>
+<text x="190" y="3303" class="body" >元素可递归为任意表达式</text>
+</a>
+</g>
+<path d="M85 3404V3478H125" class="edge variant" marker-end="url(#arrow)"/>
+<text x="131" y="3433" class="op" >build_primary → build_path（改为 Struct）</text>
+<g id="struct-expr" class="node" data-title="struct · 结构体值">
+<rect x="125" y="3450" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M141 3451H579" stroke="#7550ae" stroke-width="4"/>
+<text x="145" y="3485" class="node-title" >struct · 结构体值</text>
+<text x="145" y="3516" class="body" >path：类型名；type_arguments：类型实参</text>
+</g>
+<path d="M145 3540V3632H170" class="edge" marker-end="url(#arrow)"/>
+<text x="164" y="3566" class="edge-label" >fields[] · 内联创建 FieldInit</text>
+<text x="164" y="3589" class="op" >value → build_expression</text>
+<g class="node" data-title="字段初始化项">
+<a href="#expression" data-jump="expression">
+<rect x="170" y="3600" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M186 3601H574" stroke="#7550ae" stroke-width="4"/>
+<text x="190" y="3635" class="node-title" >字段初始化项</text>
+<text x="190" y="3666" class="body" >name + value: expression ↩ + span</text>
+</a>
+</g>
+<path d="M670 2124V2198H710" class="edge variant" marker-end="url(#arrow)"/>
+<text x="716" y="2153" class="op" >build_expression_with_block → build_block</text>
+<g id="block-expr" class="node" data-title="block · 块表达式 ↩">
+<rect x="710" y="2170" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M726 2171H1164" stroke="#137b73" stroke-width="4"/>
+<text x="730" y="2205" class="node-title" >block · 块表达式 ↩</text>
+<text x="730" y="2236" class="body" >递归回到上方 block → statements[]</text>
+</g>
+<path d="M730 2260V2352H755" class="edge" marker-end="url(#arrow)"/>
+<text x="749" y="2286" class="edge-label" >statements[] · 语句与尾项</text>
+<text x="749" y="2309" class="op" >build_statement；尾项由 build_block 包装</text>
+<g class="node" data-title="stmt ↩">
+<a href="#block" data-jump="block">
+<rect x="755" y="2320" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M771 2321H1159" stroke="#137b73" stroke-width="4"/>
+<text x="775" y="2355" class="node-title" >stmt ↩</text>
+<text x="775" y="2386" class="body" >empty / let / expr stmt</text>
+</a>
+</g>
+<path d="M670 2474V2548H710" class="edge variant" marker-end="url(#arrow)"/>
+<text x="716" y="2503" class="op" >build_if（可经 primary / with_block）</text>
+<g id="if-expr" class="node" data-title="if · 条件分支">
+<rect x="710" y="2520" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M726 2521H1164" stroke="#137b73" stroke-width="4"/>
+<text x="730" y="2555" class="node-title" >if · 条件分支</text>
+<text x="730" y="2586" class="body" >operands 按条件、then、else 的顺序保存</text>
+</g>
+<path d="M730 2610V2702H755" class="edge" marker-end="url(#arrow)"/>
+<text x="749" y="2636" class="edge-label" >operands[0] · 条件</text>
+<text x="749" y="2659" class="op" >build_expression</text>
+<g class="node" data-title="expression ↩">
+<a href="#expression" data-jump="expression">
+<rect x="755" y="2670" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M771 2671H1159" stroke="#7550ae" stroke-width="4"/>
+<text x="775" y="2705" class="node-title" >expression ↩</text>
+<text x="775" y="2736" class="body" >条件表达式</text>
+</a>
+</g>
+<path d="M730 2761V2853H755" class="edge" marker-end="url(#arrow)"/>
+<text x="749" y="2787" class="edge-label" >operands[1] · then 分支</text>
+<text x="749" y="2810" class="op" >build_block</text>
+<g class="node" data-title="block ↩">
+<a href="#block" data-jump="block">
+<rect x="755" y="2821" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M771 2822H1159" stroke="#137b73" stroke-width="4"/>
+<text x="775" y="2856" class="node-title" >block ↩</text>
+<text x="775" y="2887" class="body" >条件成立时执行的块</text>
+</a>
+</g>
+<path d="M730 2912V3004H755" class="edge" marker-end="url(#arrow)"/>
+<text x="749" y="2938" class="edge-label" >operands[2]? · else / else if</text>
+<text x="749" y="2961" class="op" >build_block / build_if</text>
+<g class="node" data-title="block ↩ / if ↩">
+<a href="#if-expr" data-jump="if-expr">
+<rect x="755" y="2972" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M771 2973H1159" stroke="#137b73" stroke-width="4"/>
+<text x="775" y="3007" class="node-title" >block ↩ / if ↩</text>
+<text x="775" y="3038" class="body" >可选；else if 递归产生 If</text>
+</a>
+</g>
+<path d="M670 3114V3188H710" class="edge variant" marker-end="url(#arrow)"/>
+<text x="716" y="3143" class="op" >build_expression_with_block / build_primary</text>
+<g id="loop-expr" class="node" data-title="loop · 无限循环">
+<rect x="710" y="3160" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M726 3161H1164" stroke="#137b73" stroke-width="4"/>
+<text x="730" y="3195" class="node-title" >loop · 无限循环</text>
+<text x="730" y="3226" class="body" >operands[0]：循环体</text>
+</g>
+<path d="M730 3250V3342H755" class="edge" marker-end="url(#arrow)"/>
+<text x="749" y="3276" class="edge-label" >operands[0]</text>
+<text x="749" y="3299" class="op" >build_block</text>
+<g class="node" data-title="block ↩">
+<a href="#block" data-jump="block">
+<rect x="755" y="3310" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M771 3311H1159" stroke="#137b73" stroke-width="4"/>
+<text x="775" y="3345" class="node-title" >block ↩</text>
+<text x="775" y="3376" class="body" >包含循环中的语句</text>
+</a>
+</g>
+<path d="M670 3464V3538H710" class="edge variant" marker-end="url(#arrow)"/>
+<text x="716" y="3493" class="op" >build_expression_with_block / build_primary</text>
+<g id="while-expr" class="node" data-title="while · 条件循环">
+<rect x="710" y="3510" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M726 3511H1164" stroke="#137b73" stroke-width="4"/>
+<text x="730" y="3545" class="node-title" >while · 条件循环</text>
+<text x="730" y="3576" class="body" >operands[0]：条件；[1]：循环体</text>
+</g>
+<path d="M730 3600V3692H755" class="edge" marker-end="url(#arrow)"/>
+<text x="749" y="3626" class="edge-label" >operands[0] / operands[1]</text>
+<text x="749" y="3649" class="op" >build_expression / build_block</text>
+<g class="node" data-title="expression ↩ + block ↩">
+<a href="#expression" data-jump="expression">
+<rect x="755" y="3660" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M771 3661H1159" stroke="#137b73" stroke-width="4"/>
+<text x="775" y="3695" class="node-title" >expression ↩ + block ↩</text>
+<text x="775" y="3726" class="body" >先检查条件，再执行块</text>
+</a>
+</g>
+<path d="M1255 2124V2198H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="2153" class="op" >build_unary</text>
+<g id="unary-expr" class="node" data-title="unary · 一元运算">
+<rect x="1295" y="2170" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 2171H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="2205" class="node-title" >unary · 一元运算</text>
+<text x="1315" y="2236" class="body" >text：- ! * &amp; &amp;mut 等</text>
+</g>
+<path d="M1315 2260V2352H1340" class="edge" marker-end="url(#arrow)"/>
+<text x="1334" y="2286" class="edge-label" >operands[0] · 被操作值</text>
+<text x="1334" y="2309" class="op" >build_expression</text>
+<g class="node" data-title="expression ↩">
+<a href="#expression" data-jump="expression">
+<rect x="1340" y="2320" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1356 2321H1744" stroke="#7550ae" stroke-width="4"/>
+<text x="1360" y="2355" class="node-title" >expression ↩</text>
+<text x="1360" y="2386" class="body" >没有运算符时直接透传</text>
+</a>
+</g>
+<path d="M1255 2454V2528H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="2483" class="op" >fold_binary</text>
+<g id="binary-expr" class="node" data-title="binary · 二元运算">
+<rect x="1295" y="2500" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 2501H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="2535" class="node-title" >binary · 二元运算</text>
+<text x="1315" y="2566" class="body" >text：运算符；G4 决定优先级</text>
+</g>
+<path d="M1315 2590V2682H1340" class="edge" marker-end="url(#arrow)"/>
+<text x="1334" y="2616" class="edge-label" >operands[0] / [1] · 左 / 右</text>
+<text x="1334" y="2639" class="op" >build_expression；旧 result + 新 operand</text>
+<g class="node" data-title="expression ↩ × 2">
+<a href="#expression" data-jump="expression">
+<rect x="1340" y="2650" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1356 2651H1744" stroke="#7550ae" stroke-width="4"/>
+<text x="1360" y="2685" class="node-title" >expression ↩ × 2</text>
+<text x="1360" y="2716" class="body" >同级从左向右折叠</text>
+</a>
+</g>
+<path d="M1255 2784V2858H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="2813" class="op" >build_assignment</text>
+<g id="assign-expr" class="node" data-title="assign · 赋值">
+<rect x="1295" y="2830" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 2831H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="2865" class="node-title" >assign · 赋值</text>
+<text x="1315" y="2896" class="body" >text：= += 等；左值是否合法由语义检查</text>
+</g>
+<path d="M1315 2920V3012H1340" class="edge" marker-end="url(#arrow)"/>
+<text x="1334" y="2946" class="edge-label" >operands[0] / [1] · 目标 / 值</text>
+<text x="1334" y="2969" class="op" >build_expression</text>
+<g class="node" data-title="expression ↩ × 2">
+<a href="#expression" data-jump="expression">
+<rect x="1340" y="2980" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1356 2981H1744" stroke="#7550ae" stroke-width="4"/>
+<text x="1360" y="3015" class="node-title" >expression ↩ × 2</text>
+<text x="1360" y="3046" class="body" >没有右侧时直接返回左侧</text>
+</a>
+</g>
+<path d="M1255 3114V3188H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="3143" class="op" >build_cast</text>
+<g id="cast-expr" class="node" data-title="cast · 类型转换">
+<rect x="1295" y="3160" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 3161H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="3195" class="node-title" >cast · 类型转换</text>
+<text x="1315" y="3226" class="body" >text=&quot;as&quot;；连续转换逐层包裹</text>
+</g>
+<path d="M1315 3250V3342H1340" class="edge" marker-end="url(#arrow)"/>
+<text x="1334" y="3276" class="edge-label" >operands[0] / cast_type</text>
+<text x="1334" y="3299" class="op" >build_expression / build_type</text>
+<g class="node" data-title="expression ↩ + type ↩">
+<a href="#types" data-jump="types">
+<rect x="1340" y="3310" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1356 3311H1744" stroke="#b2691d" stroke-width="4"/>
+<text x="1360" y="3345" class="node-title" >expression ↩ + type ↩</text>
+<text x="1360" y="3376" class="body" >被转换值 + 目标类型</text>
+</a>
+</g>
+<path d="M1255 3444V3518H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="3473" class="op" >build_primary → build_expression（值）</text>
+<g id="break-expr" class="node" data-title="break · 退出循环">
+<rect x="1295" y="3490" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 3491H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="3525" class="node-title" >break · 退出循环</text>
+<text x="1315" y="3556" class="body" >operands[0]?：expression ↩，可携带值</text>
+</g>
+<path d="M1255 3614V3688H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="3643" class="op" >build_primary → build_expression（值）</text>
+<g id="return-expr" class="node" data-title="return · 返回函数">
+<rect x="1295" y="3660" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 3661H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="3695" class="node-title" >return · 返回函数</text>
+<text x="1315" y="3726" class="body" >operands[0]?：expression ↩，可带返回值</text>
+</g>
+<path d="M1255 3784V3858H1295" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1301" y="3813" class="op" >build_primary</text>
+<g id="continue-expr" class="node" data-title="continue · 下一轮">
+<rect x="1295" y="3830" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1311 3831H1749" stroke="#7550ae" stroke-width="4"/>
+<text x="1315" y="3865" class="node-title" >continue · 下一轮</text>
+<text x="1315" y="3896" class="body" >没有子节点</text>
+</g>
+<path d="M1840 2124V2198H1880" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1886" y="2153" class="op" >build_postfix → apply_postfix → apply_call</text>
+<g id="call-expr" class="node" data-title="call · 函数调用">
+<rect x="1880" y="2170" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1896 2171H2334" stroke="#7550ae" stroke-width="4"/>
+<text x="1900" y="2205" class="node-title" >call · 函数调用</text>
+<text x="1900" y="2236" class="body" >operands[0]：base，沿用上一轮结果</text>
+</g>
+<path d="M1900 2260V2352H1925" class="edge" marker-end="url(#arrow)"/>
+<text x="1919" y="2286" class="edge-label" >operands[1…] · 实参</text>
+<text x="1919" y="2309" class="op" >apply_call → build_expression</text>
+<g class="node" data-title="expression ↩ []">
+<a href="#expression" data-jump="expression">
+<rect x="1925" y="2320" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1941 2321H2329" stroke="#7550ae" stroke-width="4"/>
+<text x="1945" y="2355" class="node-title" >expression ↩ []</text>
+<text x="1945" y="2386" class="body" >按源码顺序保存参数</text>
+</a>
+</g>
+<path d="M1840 2484V2558H1880" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1886" y="2513" class="op" >build_postfix → [apply_postfix →] apply_dot</text>
+<g id="method-expr" class="node" data-title="method · 方法调用">
+<rect x="1880" y="2530" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1896 2531H2334" stroke="#7550ae" stroke-width="4"/>
+<text x="1900" y="2565" class="node-title" >method · 方法调用</text>
+<text x="1900" y="2596" class="body" >text：方法名；operands[0]：接收者</text>
+</g>
+<path d="M1900 2620V2712H1925" class="edge" marker-end="url(#arrow)"/>
+<text x="1919" y="2646" class="edge-label" >operands[1…] · 实参</text>
+<text x="1919" y="2669" class="op" >build_expression</text>
+<g class="node" data-title="expression ↩ []">
+<a href="#expression" data-jump="expression">
+<rect x="1925" y="2680" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1941 2681H2329" stroke="#7550ae" stroke-width="4"/>
+<text x="1945" y="2715" class="node-title" >expression ↩ []</text>
+<text x="1945" y="2746" class="body" >receiver 是传入的 base</text>
+</a>
+</g>
+<path d="M1900 2771V2863H1925" class="edge" marker-end="url(#arrow)"/>
+<text x="1919" y="2797" class="edge-label" >type_arguments[] · 类型实参</text>
+<text x="1919" y="2820" class="op" >append_generic_arguments → build_type</text>
+<g class="node" data-title="type ↩ []">
+<a href="#types" data-jump="types">
+<rect x="1925" y="2831" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1941 2832H2329" stroke="#b2691d" stroke-width="4"/>
+<text x="1945" y="2866" class="node-title" >type ↩ []</text>
+<text x="1945" y="2897" class="body" >保存方法段的显式类型参数</text>
+</a>
+</g>
+<path d="M1840 3004V3078H1880" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1886" y="3033" class="op" >build_postfix → [apply_postfix →] apply_dot</text>
+<g id="field-expr" class="node" data-title="field · 字段访问">
+<rect x="1880" y="3050" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1896 3051H2334" stroke="#7550ae" stroke-width="4"/>
+<text x="1900" y="3085" class="node-title" >field · 字段访问</text>
+<text x="1900" y="3116" class="body" >text：字段名；无调用括号</text>
+</g>
+<path d="M1900 3140V3232H1925" class="edge" marker-end="url(#arrow)"/>
+<text x="1919" y="3166" class="edge-label" >operands[0] · 被访问对象</text>
+<text x="1919" y="3189" class="op" >传入 base → move(base)，不重新解析</text>
+<g class="node" data-title="expression ↩">
+<a href="#expression" data-jump="expression">
+<rect x="1925" y="3200" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1941 3201H2329" stroke="#7550ae" stroke-width="4"/>
+<text x="1945" y="3235" class="node-title" >expression ↩</text>
+<text x="1945" y="3266" class="body" >沿用上一轮的完整子树</text>
+</a>
+</g>
+<path d="M1840 3364V3438H1880" class="edge variant" marker-end="url(#arrow)"/>
+<text x="1886" y="3393" class="op" >build_postfix → apply_postfix</text>
+<g id="index-expr" class="node" data-title="index · 下标访问">
+<rect x="1880" y="3410" width="470" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1896 3411H2334" stroke="#7550ae" stroke-width="4"/>
+<text x="1900" y="3445" class="node-title" >index · 下标访问</text>
+<text x="1900" y="3476" class="body" >operands[0]：容器，沿用 base</text>
+</g>
+<path d="M1900 3500V3592H1925" class="edge" marker-end="url(#arrow)"/>
+<text x="1919" y="3526" class="edge-label" >operands[1] · 索引值</text>
+<text x="1919" y="3549" class="op" >build_expression</text>
+<g class="node" data-title="expression ↩">
+<a href="#expression" data-jump="expression">
+<rect x="1925" y="3560" width="420" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1941 3561H2329" stroke="#7550ae" stroke-width="4"/>
+<text x="1945" y="3595" class="node-title" >expression ↩</text>
+<text x="1945" y="3626" class="body" >例如 a[i] 中的 i</text>
+</a>
+</g>
+<text x="1900" y="3800" class="body" >后缀链示例：a.b(i)[j]</text>
+<text x="1900" y="3840" class="body" >index → method → path(a)</text>
+<text x="1900" y="3880" class="tiny" >每次新节点的 operands[0] 包住旧 result。</text>
+<text x="2471" y="2153" class="op" >build_type（普通类型 / closedCastType）</text>
+<g id="types" class="node" data-title="type · 类型的四种形态">
+<rect x="2465" y="2170" width="455" height="117" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2481 2171H2904" stroke="#b2691d" stroke-width="4"/>
+<text x="2485" y="2205" class="node-title" >type · 类型的四种形态</text>
+<text x="2485" y="2236" class="body" >语法形状；合法性留给语义分析</text>
+<text x="2485" y="2263" class="body" >括号类型透传；as 受限类型也由这里构建</text>
+</g>
+<path d="M2425 2354V2428H2465" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2471" y="2361" class="op" >build_type → unit_type / build_function →</text>
+<text x="2471" y="2383" class="op" >unit_type</text>
+<g id="unit-type" class="node" data-title="unit · 单位类型 ()">
+<rect x="2465" y="2400" width="455" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2481 2401H2904" stroke="#b2691d" stroke-width="4"/>
+<text x="2485" y="2435" class="node-title" >unit · 单位类型 ()</text>
+<text x="2485" y="2466" class="body" >无子类型；函数省略返回类型时也使用它</text>
+</g>
+<path d="M2425 2574V2648H2465" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2471" y="2603" class="op" >build_type → append_type_segment</text>
+<g id="path-type" class="node" data-title="path · 命名类型">
+<rect x="2465" y="2620" width="455" height="90" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2481 2621H2904" stroke="#b2691d" stroke-width="4"/>
+<text x="2485" y="2655" class="node-title" >path · 命名类型</text>
+<text x="2485" y="2686" class="body" >path：名称段，例如 Vec / Box / Self</text>
+</g>
+<path d="M2485 2710V2802H2510" class="edge" marker-end="url(#arrow)"/>
+<text x="2504" y="2736" class="edge-label" >arguments[] · 类型参数</text>
+<text x="2504" y="2759" class="op" >append_generic_arguments → build_type</text>
+<g class="node" data-title="type ↩ []">
+<a href="#types" data-jump="types">
+<rect x="2510" y="2770" width="405" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2526 2771H2899" stroke="#b2691d" stroke-width="4"/>
+<text x="2530" y="2805" class="node-title" >type ↩ []</text>
+<text x="2530" y="2836" class="body" >例如 Vec&lt;i32&gt; 中的 i32</text>
+</a>
+</g>
+<path d="M2425 2964V3038H2465" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2471" y="2993" class="op" >build_type</text>
+<g id="ref-type" class="node" data-title="reference · 引用类型">
+<rect x="2465" y="3010" width="455" height="117" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2481 3011H2904" stroke="#b2691d" stroke-width="4"/>
+<text x="2485" y="3045" class="node-title" >reference · 引用类型</text>
+<text x="2485" y="3076" class="body" >is_mutable：是否 &amp;mut</text>
+<text x="2485" y="3103" class="body" >&amp;&amp;mut T → 外层 &amp; + 内层 &amp;mut</text>
+</g>
+<path d="M2485 3127V3219H2510" class="edge" marker-end="url(#arrow)"/>
+<text x="2504" y="3153" class="edge-label" >element · 被引用类型</text>
+<text x="2504" y="3176" class="op" >build_type（递归）</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="2510" y="3187" width="405" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2526 3188H2899" stroke="#b2691d" stroke-width="4"/>
+<text x="2530" y="3222" class="node-title" >type ↩</text>
+<text x="2530" y="3253" class="body" >可继续是引用、数组或命名类型</text>
+</a>
+</g>
+<path d="M2425 3394V3468H2465" class="edge variant" marker-end="url(#arrow)"/>
+<text x="2471" y="3423" class="op" >build_type；长度取 constValue.getText()</text>
+<g id="array-type" class="node" data-title="array · 数组类型">
+<rect x="2465" y="3440" width="455" height="117" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2481 3441H2904" stroke="#b2691d" stroke-width="4"/>
+<text x="2485" y="3475" class="node-title" >array · 数组类型</text>
+<text x="2485" y="3506" class="body" >array_length：长度原文，例如 &quot;N&quot;</text>
+<text x="2485" y="3533" class="body" >这里不构建长度 expression</text>
+</g>
+<path d="M2485 3557V3649H2510" class="edge" marker-end="url(#arrow)"/>
+<text x="2504" y="3583" class="edge-label" >element · 元素类型</text>
+<text x="2504" y="3606" class="op" >build_type（递归）</text>
+<g class="node" data-title="type ↩">
+<a href="#types" data-jump="types">
+<rect x="2510" y="3617" width="405" height="91" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2526 3618H2899" stroke="#b2691d" stroke-width="4"/>
+<text x="2530" y="3652" class="node-title" >type ↩</text>
+<text x="2530" y="3683" class="body" >例如 [i32; N] 中的 i32</text>
+</a>
+</g>
+<text x="65" y="4040" class="section-no" >04</text>
+<text x="129" y="4040" class="section-title" >构建辅助与公共属性</text>
+<text x="129" y="4072" class="muted" >下面是附着数据或转换操作，不是 expression 之下的新一层 AST。</text>
+<g id="const-values" class="node" data-title="常量值 · expression 的受限子集">
+<rect x="95" y="4105" width="890" height="215" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M111 4106H969" stroke="#7550ae" stroke-width="4"/>
+<text x="115" y="4140" class="node-title" >常量值 · expression 的受限子集</text>
+<text x="115" y="4171" class="body" >build_constant(value)：integer / boolean / path / unary(-)</text>
+<text x="115" y="4198" class="body" >负号 → build_magnitude → integer 或 path；括号递归透传</text>
+<text x="115" y="4225" class="body" >build_path 保留路径与类型实参；常量值由 const.value / array 次数引用</text>
+<text x="115" y="4252" class="body" >与 build_constant(item) 区分：后者构建声明，前者构建声明中的值</text>
+</g>
+<g class="node" data-title="id + span · 节点位置与身份">
+<rect x="1040" y="4105" width="890" height="215" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M1056 4106H1914" stroke="#b2691d" stroke-width="4"/>
+<text x="1060" y="4140" class="node-title" >id + span · 节点位置与身份</text>
+<text x="1060" y="4171" class="body" >make_expr → stamp → source_span：分配表达式、编号并取源码位置</text>
+<text x="1060" y="4198" class="body" >unit_type → stamp：创建单位类型；其他声明和类型也调用 stamp</text>
+<text x="1060" y="4225" class="body" >merge：把运算 / cast / 后缀节点范围扩展到完整子树</text>
+<text x="1060" y="4252" class="body" >FieldInit 只有 name / value / span；没有自己的 NodeId</text>
+</g>
+<g class="node" data-title="分派与附着元数据">
+<rect x="1985" y="4105" width="890" height="215" rx="14" fill="var(--surface)" stroke="var(--border)"/>
+<path d="M2001 4106H2859" stroke="#5c6d85" stroke-width="4"/>
+<text x="2005" y="4140" class="node-title" >分派与附着元数据</text>
+<text x="2005" y="4171" class="body" >rule / as_context / as_terminal：读取规则名并区分规则与终结符</text>
+<text x="2005" y="4198" class="body" >is_expression_context / is_operator_rule / is_binary_rule：识别分支</text>
+<text x="2005" y="4225" class="body" >lifetime_parameters：提取生命周期名；self / derives 内联写入</text>
+<text x="2005" y="4252" class="body" >SyntaxListener::syntaxError：累积词法 / 语法诊断，失败时不构建 AST</text>
+</g>
+<text x="65" y="4380" class="muted" >依据 Rx-Compiler/src/frontend.cpp 与 include/rx/ast.hpp · 结构模式图，展示所有可能形态；不是某一个具体程序的 AST 实例。</text>
+</svg></div></div></main>
+<script>
+const stage=document.getElementById('stage'),sheet=document.getElementById('sheet'),extent=document.getElementById('extent');let scale=1;
+function zoom(value,cx=stage.clientWidth/2,cy=stage.clientHeight/2){const old=scale,px=(stage.scrollLeft+cx)/old,py=(stage.scrollTop+cy)/old;scale=Math.max(.15,Math.min(2,value));sheet.style.transform='scale('+scale+')';extent.style.width=(3000*scale)+'px';extent.style.height=(4420*scale)+'px';sheet.style.width='3000px';sheet.style.height='4420px';document.getElementById('status').textContent=Math.round(scale*100)+'%';stage.scrollLeft=px*scale-cx;stage.scrollTop=py*scale-cy;}
+document.getElementById('plus').onclick=()=>zoom(scale*1.2);document.getElementById('minus').onclick=()=>zoom(scale/1.2);document.getElementById('fit').onclick=()=>{zoom(stage.clientWidth/3000);stage.scrollTop=0;stage.scrollLeft=0;};document.getElementById('read').onclick=()=>zoom(.85);
+stage.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();const r=stage.getBoundingClientRect();zoom(scale*Math.exp(-e.deltaY*.003),e.clientX-r.left,e.clientY-r.top);}},{passive:false});
+document.querySelectorAll('[data-jump]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const n=document.getElementById(a.dataset.jump),b=n.getBBox();zoom(Math.max(scale,.75));stage.scrollTo({left:Math.max(0,(b.x-60)*scale),top:Math.max(0,(b.y-70)*scale),behavior:'smooth'});}));
+const blob=new Blob([new XMLSerializer().serializeToString(sheet.querySelector('svg'))],{type:'image/svg+xml'});document.getElementById('download').href=URL.createObjectURL(blob);
+zoom(stage.clientWidth/3000,0,0);
+</script></body></html>

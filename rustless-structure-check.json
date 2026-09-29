@@ -1,0 +1,21 @@
+{
+  "mainChapters": [
+    "frontend",
+    "semantic"
+  ],
+  "passParents": [
+    [
+      "pass1",
+      "semantic"
+    ],
+    [
+      "pass2",
+      "semantic"
+    ]
+  ],
+  "titlesWithoutOverview": true,
+  "articles": 61,
+  "bodyExamples": 254,
+  "openingExamples": 20,
+  "oldDetails": 217
+}

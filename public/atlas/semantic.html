@@ -1,0 +1,2106 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Rx Semantic · 两阶段工作流程</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Rx Semantic · 两阶段工作流程" data-srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Rx Semantic · 两阶段工作流程&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script type=&quot;application/json&quot; id=&quot;codex-visualization-widget-state&quot;&gt;__CODEX_VISUALIZATION_WIDGET_STATE__&lt;/script&gt;
+&lt;script&gt;(() =&gt; {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia(&quot;(prefers-color-scheme: dark)&quot;);
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    &quot;codex-visualization-widget-state&quot;,
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? &quot;{}&quot;);
+  initialStateElement?.remove();
+  /** @type {Record&lt;string, unknown&gt; | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? &quot;none&quot;;
+  let nextStateRequestId = 0;
+  /** @type {Map&lt;number, { resolve: () =&gt; void; reject: (error: Error) =&gt; void; timeout: ReturnType&lt;typeof globalThis.setTimeout&gt;; serializedState: string }&gt;} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =&gt;
+    Object.assign(
+      new Error(&quot;The host could not persist the widget state update&quot;),
+      {
+        code: -32000,
+        data: { code: &quot;widget_state_persistence_failed&quot;, retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) =&gt; {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, &quot;data&quot;);
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, &quot;ports&quot;);
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, &quot;source&quot;);
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) =&gt; {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;open-external&quot;, { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;follow-up&quot;, { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record&lt;string, unknown&gt; | ((previous: Record&lt;string, unknown&gt; | null) =&gt; Record&lt;string, unknown&gt;)} next
+   * @returns {Promise&lt;void&gt;}
+   */
+  const setWidgetState = async (next) =&gt; {
+    const nextState = typeof next === &quot;function&quot; ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== &quot;object&quot; ||
+      isArray(nextState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) =&gt; {
+        if (
+          typeof value === &quot;undefined&quot; ||
+          typeof value === &quot;function&quot; ||
+          typeof value === &quot;symbol&quot; ||
+          (typeof value === &quot;number&quot; &amp;&amp; !Number.isFinite(value))
+        ) {
+          throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== &quot;object&quot; ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length &gt; 16 * 1024) {
+      throw new TypeError(
+        &quot;Widget state must be a JSON object of at most 16 KiB&quot;,
+      );
+    }
+    if (
+      hasOwn(storedState, &quot;imageIds&quot;) &amp;&amp;
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) =&gt; typeof id !== &quot;string&quot;,
+        ))
+    ) {
+      throw new TypeError(&quot;Widget state imageIds must be an array of strings&quot;);
+    }
+    if (storedState.imageIds?.length &gt; 0) {
+      throw Object.assign(
+        new TypeError(&quot;Visualization state does not support image attachments&quot;),
+        { code: -32602, data: { code: &quot;images_unsupported&quot; } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === &quot;none&quot;) {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) =&gt; {
+      const timeout = globalThis.setTimeout(() =&gt; {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+    });
+  };
+  const syncTheme = () =&gt; {
+    const theme = mediaQuery.matches ? &quot;dark&quot; : &quot;light&quot;;
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: &quot;none&quot;,
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () =&gt; {
+    postToHost(&quot;height&quot;, {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    &quot;message&quot;,
+    (event) =&gt; {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== &quot;object&quot; ||
+        data?.type !== &quot;codex-visualization-initialize&quot; ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          &quot;message&quot;,
+          (event) =&gt; {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === &quot;object&quot; &amp;&amp; data?.type === &quot;measure&quot;) {
+              sendHeight();
+            } else if (
+              typeof data === &quot;object&quot; &amp;&amp;
+              data?.type === &quot;widget-state-result&quot;
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== &quot;number&quot;) {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener(&quot;change&quot;, syncTheme);
+  globalThis.addEventListener(&quot;click&quot;, (event) =&gt; {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest(&quot;a[href]&quot;);
+    const href = link?.getAttribute(&quot;href&quot;);
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith(&quot;#&quot;)) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost(&quot;scroll-to&quot;, {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+&lt;/script&gt;
+&lt;div id=&quot;rx-semantic-atlas&quot;&gt;
+  &lt;header class=&quot;atlas-head&quot;&gt;
+    &lt;h2&gt;Rx Semantic · 两阶段工作流程&lt;/h2&gt;
+    &lt;div class=&quot;viz-row&quot;&gt;
+      &lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; id=&quot;atlas-fit&quot;&gt;适合宽度&lt;/button&gt;
+      &lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;atlas-pass-a&quot;&gt;阶段 Ⅰ&lt;/button&gt;
+      &lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;atlas-pass-b&quot;&gt;阶段 Ⅱ&lt;/button&gt;
+      &lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;atlas-read&quot;&gt;阅读尺寸&lt;/button&gt;
+      &lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; id=&quot;atlas-minus&quot; aria-label=&quot;缩小&quot;&gt;−&lt;/button&gt;&lt;span id=&quot;atlas-scale&quot; class=&quot;text-small&quot;&gt;100%&lt;/span&gt;
+      &lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; id=&quot;atlas-plus&quot; aria-label=&quot;放大&quot;&gt;＋&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/header&gt;
+  &lt;div class=&quot;atlas-locate&quot;&gt;
+    &lt;label for=&quot;atlas-select&quot;&gt;定位节点&lt;/label&gt;
+    &lt;select class=&quot;form-select&quot; id=&quot;atlas-select&quot;&gt;&lt;/select&gt;
+    &lt;span class=&quot;text-small&quot;&gt;滚动浏览 · Ctrl + 滚轮缩放 · 点击节点查看中文说明&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;atlas-stage&quot; id=&quot;atlas-stage&quot;&gt;
+    &lt;div id=&quot;atlas-extent&quot;&gt;&lt;div id=&quot;atlas-sheet&quot;&gt;&lt;svg id=&quot;atlas-svg&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; role=&quot;img&quot; aria-labelledby=&quot;atlas-title atlas-desc&quot;&gt;
+      &lt;title id=&quot;atlas-title&quot;&gt;Rx 语义分析两阶段工作流程架构图&lt;/title&gt;
+      &lt;desc id=&quot;atlas-desc&quot;&gt;蓝色阶段先登记全局声明、解析类型、求常量值并校验布局；绿色阶段建立函数语境；紫色分派展开全部二十一种表达式及其共用规则；橙色出口保存旁表。节点是概念，边上标注调用。使用节点菜单可访问每一个节点的说明。&lt;/desc&gt;
+    &lt;/svg&gt;&lt;/div&gt;&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;section class=&quot;atlas-inspector&quot; aria-live=&quot;polite&quot;&gt;
+    &lt;div class=&quot;atlas-inspector-head&quot;&gt;&lt;h3 id=&quot;atlas-detail-title&quot;&gt;入口&lt;/h3&gt;&lt;span class=&quot;text-small&quot; id=&quot;atlas-detail-call&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+    &lt;p id=&quot;atlas-detail-body&quot;&gt;&lt;/p&gt;
+    &lt;div class=&quot;text-small atlas-source&quot; id=&quot;atlas-detail-source&quot;&gt;&lt;/div&gt;
+  &lt;/section&gt;
+  &lt;footer class=&quot;atlas-foot text-small&quot;&gt;依据 semantic.cpp / semantic.hpp / doc/reading/semantic.md / main.cpp。两大阶段不等于恰好两次整树遍历；输出为原 AST 配套的语义旁表，不是改写后的 AST。&lt;/footer&gt;
+&lt;/div&gt;
+&lt;style&gt;
+#rx-semantic-atlas{--bg:#f5f8fc;--surface:#fff;--ink:#1b2e48;--muted:#51657f;--border:#c5d2e2;--line:#7d93ae;--layer:#f5f8fc;--family:#fff;--decl:#2563ba;--stmt:#137b73;--expr:#7550ae;--type:#b2691d;--ref:#d37624;--fn:#376199;color:var(--ink);font-family:&#x27;Microsoft YaHei&#x27;,&#x27;PingFang SC&#x27;,system-ui,sans-serif;background:var(--bg)}
+#rx-semantic-atlas .atlas-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+#rx-semantic-atlas .atlas-head h2{margin:0 auto 0 0}
+#rx-semantic-atlas .atlas-locate{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+#rx-semantic-atlas .atlas-locate select{flex:0 1 480px;min-width:0}
+#rx-semantic-atlas .atlas-stage{position:relative;width:100%;height:690px;overflow:auto;background:var(--bg);border-top:1px solid var(--border);border-bottom:1px solid var(--border);touch-action:pan-x pan-y}
+#rx-semantic-atlas .atlas-stage.dragging{cursor:grabbing}
+#rx-semantic-atlas .atlas-stage svg{display:block;max-width:none;font-family:&#x27;Microsoft YaHei&#x27;,&#x27;PingFang SC&#x27;,sans-serif}
+#atlas-sheet{transform-origin:top left;position:absolute;top:0;left:0;width:5600px}
+#atlas-extent{position:relative;overflow:hidden}
+#rx-semantic-atlas .atlas-inspector{padding:16px 0 12px;border-bottom:1px solid var(--border)}
+#rx-semantic-atlas .atlas-inspector-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+#rx-semantic-atlas .atlas-inspector h3{margin:0}
+#rx-semantic-atlas .atlas-inspector p{margin:10px 0;line-height:1.7}
+#rx-semantic-atlas .atlas-source,#rx-semantic-atlas .atlas-foot,#atlas-detail-call{color:var(--muted);overflow-wrap:anywhere}
+#rx-semantic-atlas .atlas-foot{margin-top:10px}
+#atlas-svg text{fill:var(--ink)}
+#atlas-svg .canvas-title{font-size:44px;font-weight:700}
+#atlas-svg .canvas-note{font-size:23px;fill:var(--muted)}
+#atlas-svg .layer-bg{fill:var(--layer);stroke:var(--border);stroke-width:1.5}
+#atlas-svg .family-bg{fill:var(--family);fill-opacity:.45;stroke:var(--border);stroke-width:1}
+#atlas-svg .layer-title{font-size:28px;font-weight:700}
+#atlas-svg .layer-note{font-size:19px;fill:var(--muted)}
+#atlas-svg .family-title{font-size:26px;font-weight:700}
+#atlas-svg .node-box{fill:var(--surface);stroke:var(--border);stroke-width:1.5}
+#atlas-svg .node-accent{fill:none;stroke:var(--cat);stroke-width:4}
+#atlas-svg .node-title{font-size:24px;font-weight:600}
+#atlas-svg .node-note{font-size:19px;fill:var(--muted)}
+#atlas-svg .node-meta{font-size:17px;fill:var(--muted)}
+#atlas-svg .edge{fill:none;stroke:var(--line);stroke-width:2;marker-end:url(#atlas-arrow)}
+#atlas-svg .edge.reference{stroke:var(--ref);stroke-dasharray:6 6;marker-end:url(#atlas-ref)}
+#atlas-svg .edge.variant{stroke:var(--expr);stroke-dasharray:8 7}
+#atlas-svg .edge-fn{font-size:17px;fill:var(--fn);font-family:Consolas,&#x27;Microsoft YaHei&#x27;,sans-serif;paint-order:stroke;stroke:var(--bg);stroke-width:6;stroke-linejoin:round}
+#atlas-svg .edge-field{font-size:21px;fill:var(--muted);paint-order:stroke;stroke:var(--layer);stroke-width:9;stroke-linejoin:round}
+#atlas-svg .node.is-dim{opacity:.28}
+#atlas-svg .edge.is-dim,#atlas-svg .edge-label.is-dim{opacity:.11}
+#atlas-svg .node.is-focus .node-box{stroke:var(--decl);stroke-width:4}
+@media(prefers-color-scheme:dark){#rx-semantic-atlas{--bg:#101a2a;--surface:#17263b;--ink:#e5edf9;--muted:#b6c6dc;--border:#39516b;--line:#8ba2bd;--layer:#101a2a;--family:#17263b;--decl:#79a6ff;--stmt:#5bd6c8;--expr:#c0a1ff;--type:#ffb36b;--ref:#ffad5c;--fn:#a8c9ff}}
+@media(max-width:600px){#rx-semantic-atlas .atlas-stage{height:520px}#rx-semantic-atlas .atlas-locate span{width:100%}}
+&lt;/style&gt;
+&lt;script&gt;
+(() =&gt; {
+  const root=document.getElementById(&#x27;rx-semantic-atlas&#x27;);
+  const svg=root.querySelector(&#x27;#atlas-svg&#x27;),stage=root.querySelector(&#x27;#atlas-stage&#x27;),select=root.querySelector(&#x27;#atlas-select&#x27;);
+  const groups=[{&quot;id&quot;:&quot;input&quot;,&quot;stage&quot;:&quot;a&quot;,&quot;title&quot;:&quot;入口｜语法已经正确，含义还需要检查&quot;,&quot;edge&quot;:&quot;analyze → Analyzer::run&quot;,&quot;lines&quot;:[&quot;输入：只读 AST + 诊断收集器&quot;,&quot;目标：名字有定义、类型可兼容、访问有权限&quot;],&quot;explain&quot;:&quot;语法阶段只说明程序能按文法组成 AST。analyze 新建 Analyzer，run 组织分析。分析器读取原 AST，不重新解析文本，也不执行程序。两大阶段不是恰好两次完整遍历：准备阶段内部有多轮处理与依赖递归。&quot;,&quot;source&quot;:&quot;semantic.cpp:169,1719&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;purpose-a&quot;,&quot;title&quot;:&quot;Ⅰ 先知道“有哪些东西”&quot;,&quot;edge&quot;:&quot;run：前五个步骤&quot;,&quot;lines&quot;:[&quot;遍历：顶层声明 + 受限常量表达式&quot;,&quot;建立：名字、签名、字段、常量值&quot;,&quot;目的：正文引用声明时有据可查&quot;],&quot;explain&quot;:&quot;即使被调用函数写在后面，正文检查时也能先查到其签名。此阶段尚未深入检查普通函数体，但数组长度等依赖会提前触发常量类型解析和求值。&quot;,&quot;source&quot;:&quot;semantic.cpp:170–174&quot;},{&quot;id&quot;:&quot;purpose-b&quot;,&quot;title&quot;:&quot;Ⅱ 再判断“使用得对不对”&quot;,&quot;edge&quot;:&quot;run → check_functions&quot;,&quot;lines&quot;:[&quot;遍历：函数 → block → stmt / expr&quot;,&quot;读取：阶段Ⅰ准备好的声明信息&quot;,&quot;补充：局部绑定、表达式类型与调整&quot;],&quot;explain&quot;:&quot;每个函数都有新的局部作用域上下文。递归检查表达式时，期望类型从父节点向下流动，实际类型与访问属性从子节点向上返回。&quot;,&quot;source&quot;:&quot;semantic.cpp:175,685–720&quot;}]},{&quot;id&quot;:&quot;collect&quot;,&quot;stage&quot;:&quot;a&quot;,&quot;title&quot;:&quot;Ⅰ · 01 登记全局名字&quot;,&quot;edge&quot;:&quot;run → collect_items&quot;,&quot;lines&quot;:[&quot;先保存声明身份和 AST 指针，不检查函数体&quot;,&quot;输出：结构体表、函数表、常量表、待处理 impl&quot;],&quot;explain&quot;:&quot;按顶层 Item 分派：结构体进入类型命名空间，函数和常量进入值命名空间；检查重名和内建名称冲突。SymbolId 直接复用声明的 NodeId，不额外分配 TypeId 或 FunctionId。&quot;,&quot;source&quot;:&quot;semantic.cpp:211–262&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;items&quot;,&quot;title&quot;:&quot;struct · fn · const&quot;,&quot;edge&quot;:&quot;collect_items → visit&quot;,&quot;lines&quot;:[&quot;struct：登记类型名&quot;,&quot;fn / const：登记值名&quot;,&quot;impl：暂存；use：本层忽略&quot;],&quot;explain&quot;:&quot;这里的 visit 是 std::visit 的分派 lambda。Use 不建立导入解析系统；impl 的关联成员等到声明解析阶段集中登记。&quot;,&quot;source&quot;:&quot;semantic.cpp:211–247&quot;},{&quot;id&quot;:&quot;symbols&quot;,&quot;title&quot;:&quot;符号身份&quot;,&quot;edge&quot;:&quot;collect_items → record_symbol&quot;,&quot;lines&quot;:[&quot;声明 NodeId 就是 SymbolId&quot;,&quot;保存种类、名字、所属 owner&quot;,&quot;按 ID 去重；使用点引用此身份&quot;],&quot;explain&quot;:&quot;参数、字段、局部变量也会在各自处理阶段调用 record_symbol。相同拼写不意味着相同符号：两次 let x 拥有不同声明 NodeId。&quot;,&quot;source&quot;:&quot;semantic.cpp:205–209；semantic.hpp:14&quot;},{&quot;id&quot;:&quot;names&quot;,&quot;title&quot;:&quot;内建名字保护&quot;,&quot;edge&quot;:&quot;builtin_type / protected_builtin_value&quot;,&quot;lines&quot;:[&quot;类型名：整数、bool、Box、Vec 等&quot;,&quot;保留能力名：Copy / Clone / Eq 等&quot;,&quot;受保护 I/O 名不允许覆盖&quot;],&quot;explain&quot;:&quot;这些查询用于拒绝与内建实体冲突的声明。完整识别集合与普通函数路径识别集合不同，不能把所有内建别名都理解为受保护名称。&quot;,&quot;source&quot;:&quot;semantic.cpp:249–261&quot;}]},{&quot;id&quot;:&quot;declarations&quot;,&quot;stage&quot;:&quot;a&quot;,&quot;title&quot;:&quot;Ⅰ · 02 把声明变成可查询的类型规则&quot;,&quot;edge&quot;:&quot;run → resolve_declarations&quot;,&quot;lines&quot;:[&quot;先登记全部关联成员，再解析常量、字段和签名&quot;,&quot;ast::Type 是语法；TyPtr 是检查时使用的语义类型&quot;],&quot;explain&quot;:&quot;实际内部顺序：注册所有 impl 关联项 → 全局与关联常量类型 → 关联函数签名 → struct 字段与 derive 标签 → 普通函数签名。签名解析与函数体检查分离，是支持正文前向引用的关键。&quot;,&quot;source&quot;:&quot;semantic.cpp:410–497&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;impl&quot;,&quot;title&quot;:&quot;impl · 关联成员&quot;,&quot;edge&quot;:&quot;resolve_declarations → resolve_type&quot;,&quot;lines&quot;:[&quot;目标必须是已知 struct&quot;,&quot;登记 Owner::fn / Owner::const&quot;,&quot;跨 impl 检查关联名字冲突&quot;],&quot;explain&quot;:&quot;impl 提供 Self 的所属结构体语境。所有关联成员先登记，随后才解析成员声明的类型；这些表不是通用 Trait 实现系统。&quot;,&quot;source&quot;:&quot;semantic.cpp:411–450&quot;},{&quot;id&quot;:&quot;signature&quot;,&quot;title&quot;:&quot;fn · 函数签名&quot;,&quot;edge&quot;:&quot;resolve_declarations → resolve_function&quot;,&quot;lines&quot;:[&quot;逐个解析参数类型和返回类型&quot;,&quot;检查参数重名，保存 owner&quot;,&quot;此时不建立活动的参数作用域&quot;],&quot;explain&quot;:&quot;FunctionInfo 保存参数 TyPtr 列表、返回 TyPtr、owner 和 AST 指针。check_function 之后才根据这些签名把参数绑定到当前作用域。&quot;,&quot;source&quot;:&quot;semantic.cpp:485–496&quot;},{&quot;id&quot;:&quot;fields&quot;,&quot;title&quot;:&quot;struct · 字段与派生标签&quot;,&quot;edge&quot;:&quot;resolve_declarations → resolve_type&quot;,&quot;lines&quot;:[&quot;字段名 → 类型 + 字段符号&quot;,&quot;拒绝重名字段、重复 derive&quot;,&quot;Copy 要显式 Clone；Eq 要 PartialEq&quot;],&quot;explain&quot;:&quot;这里先登记显式能力标签并检查配套标签；每个字段是否真正具备该能力，要在 validate_layouts_and_derives 中递归验证。不会自动补上缺失的 Clone 或 PartialEq。&quot;,&quot;source&quot;:&quot;semantic.cpp:459–481&quot;},{&quot;id&quot;:&quot;type&quot;,&quot;title&quot;:&quot;type · 递归类型树&quot;,&quot;edge&quot;:&quot;resolve_type → resolve_type_impl&quot;,&quot;lines&quot;:[&quot;i32 / u32 / isize / usize / bool / ()&quot;,&quot;Self、struct、&amp;T、&amp;mut T、[T; N]&quot;,&quot;Box\u003cT&gt; / Vec\u003cT&gt;；按类型 NodeId 记结果&quot;],&quot;explain&quot;:&quot;引用、数组、Box 和 Vec 递归解析 element。Self 需要 owner。容器需要一个具体类型实参；普通结构体不接受泛型类型实参。解析失败报告错误并返回 Error。局部注解和 as 的目标类型也复用此入口。&quot;,&quot;source&quot;:&quot;semantic.cpp:263–331&quot;},{&quot;id&quot;:&quot;length&quot;,&quot;title&quot;:&quot;array · 编译期长度&quot;,&quot;edge&quot;:&quot;resolve_type_impl → evaluate_length&quot;,&quot;lines&quot;:[&quot;长度来自 usize 常量或整数字面量&quot;,&quot;处理括号和 Self::N&quot;,&quot;数组类型保存数值长度，不保存 N 文本&quot;],&quot;explain&quot;:&quot;查到常量时调用 resolve_constant_type 和 evaluate_constant；要求已成功求值、类型 usize 且非负。否则尝试带可选 usize 后缀的字面量。不是任意常量算式解释器。&quot;,&quot;source&quot;:&quot;semantic.cpp:333–373&quot;},{&quot;id&quot;:&quot;ctype&quot;,&quot;title&quot;:&quot;const · 类型依赖&quot;,&quot;edge&quot;:&quot;resolve_constant_type → resolve_type&quot;,&quot;lines&quot;:[&quot;Fresh → Resolving → Done / Failed&quot;,&quot;再次遇到 Resolving：类型依赖成环&quot;,&quot;与“常量值求值”的状态分开&quot;],&quot;explain&quot;:&quot;例如常量声明的数组类型又通过数组长度依赖常量，可能形成类型解析环。此状态机与求初始化值的 Evaluating 状态机独立，不能合并。&quot;,&quot;source&quot;:&quot;semantic.cpp:375–391&quot;}]},{&quot;id&quot;:&quot;constants&quot;,&quot;stage&quot;:&quot;a&quot;,&quot;title&quot;:&quot;Ⅰ · 03 计算并验证全部常量&quot;,&quot;edge&quot;:&quot;run → validate_constants&quot;,&quot;lines&quot;:[&quot;既检查全局 const，也检查关联 const&quot;,&quot;提前被长度依赖触发过的求值，会复用已有状态&quot;],&quot;explain&quot;:&quot;validate_constants 遍历两张常量表，保证未被引用的非法常量也不被漏检。evaluate_constant 先确保声明类型，再递归求值并比较结果类型。此阶段已经会为受限常量表达式记录语义事实。&quot;,&quot;source&quot;:&quot;semantic.cpp:498–588&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;eval&quot;,&quot;title&quot;:&quot;依赖 DFS · 常量值&quot;,&quot;edge&quot;:&quot;validate_constants → evaluate_constant&quot;,&quot;lines&quot;:[&quot;Fresh → Evaluating → Done / Failed&quot;,&quot;回到 Evaluating：常量值依赖环&quot;,&quot;成功缓存类型与整数值&quot;],&quot;explain&quot;:&quot;求值时通过常量路径递归访问依赖。Done 直接返回；遇到正在求值的节点则诊断环。失败保留状态以避免无穷递归和重复计算。&quot;,&quot;source&quot;:&quot;semantic.cpp:505–528&quot;},{&quot;id&quot;:&quot;const-expr&quot;,&quot;title&quot;:&quot;受限 const 表达式&quot;,&quot;edge&quot;:&quot;evaluate_constant → constant_value&quot;,&quot;lines&quot;:[&quot;允许：整数、bool、取负、常量路径&quot;,&quot;路径递归 → evaluate_constant&quot;,&quot;记录表达式事实；拒绝其他表达式&quot;],&quot;explain&quot;:&quot;这不是第二阶段的 check_expr。constant_value 自己处理允许的少数节点，递归调用自身和 evaluate_constant；类型不符或非法表达式均进入诊断。&quot;,&quot;source&quot;:&quot;semantic.cpp:530–588&quot;},{&quot;id&quot;:&quot;number&quot;,&quot;title&quot;:&quot;整数值与范围&quot;,&quot;edge&quot;:&quot;literal_type → parse_unsigned&quot;,&quot;lines&quot;:[&quot;去掉分隔符，识别十 / 二 / 八 / 十六进制&quot;,&quot;后缀优先；再看期望整数；否则 i32&quot;,&quot;字面量原始数值检查 32 位范围&quot;],&quot;explain&quot;:&quot;parse_unsigned 要求整个数字串都被解析，而不是接受有效前缀。literal_type 也用于正文中的整数表达式；signed_integer 用于检查负号是否适用于有符号整数。&quot;,&quot;source&quot;:&quot;semantic.cpp:393–408,774–798&quot;}]},{&quot;id&quot;:&quot;validation&quot;,&quot;stage&quot;:&quot;a&quot;,&quot;title&quot;:&quot;Ⅰ · 04 验证布局有限、派生能力成立&quot;,&quot;edge&quot;:&quot;run → validate_layouts_and_derives&quot;,&quot;lines&quot;:[&quot;检查的是类型依赖图，不是执行对象分配&quot;,&quot;布局检查完成后，再逐字段核验显式 derive&quot;],&quot;explain&quot;:&quot;先对所有结构体运行有限布局 DFS，再检查每个显式派生能力。这里只证明按值展开不会无限递归，并不在此计算字节数、对齐或成员偏移。&quot;,&quot;source&quot;:&quot;semantic.cpp:590–668&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;layout&quot;,&quot;title&quot;:&quot;struct / array · 按值展开&quot;,&quot;edge&quot;:&quot;validate_layouts_and_derives → validate_layout&quot;,&quot;lines&quot;:[&quot;struct 字段、array 元素继续 DFS&quot;,&quot;Ref / Box / Vec 为间接边，不展开&quot;,&quot;Visiting 回边 → 无限大小布局错误&quot;],&quot;explain&quot;:&quot;状态从 Fresh 到 Visiting，最后成为 Valid 或 Invalid。struct A { a: A } 不能有有限大小，而经引用或所有者容器间接连接的递归不会被当作按值布局环。&quot;,&quot;source&quot;:&quot;semantic.cpp:607–632&quot;},{&quot;id&quot;:&quot;traits&quot;,&quot;title&quot;:&quot;Copy · Clone · PartialEq · Eq&quot;,&quot;edge&quot;:&quot;validate_layouts_and_derives → supports&quot;,&quot;lines&quot;:[&quot;基本类型、引用、容器有内建规则&quot;,&quot;array 递归检查元素能力&quot;,&quot;struct 要有显式标签且字段满足规则&quot;],&quot;explain&quot;:&quot;这是一套受限的内建能力判定，不是开放式 Trait 求解器。Box/Vec 不能 Copy；共享引用可 Copy/Clone，可变引用不可；结构体递归检查用 visited 集合终止环。相等运算、clone 与重复数组也复用 supports。&quot;,&quot;source&quot;:&quot;semantic.cpp:634–668&quot;}]},{&quot;id&quot;:&quot;entry&quot;,&quot;stage&quot;:&quot;a&quot;,&quot;title&quot;:&quot;Ⅰ · 05 核验 main；全局规则准备完成&quot;,&quot;edge&quot;:&quot;run → validate_entry&quot;,&quot;lines&quot;:[&quot;main 必须存在，无值参数、无生命周期参数，返回 ()&quot;,&quot;交给第二阶段：声明表 + 签名 + 字段类型 + 常量值&quot;],&quot;explain&quot;:&quot;这是 run 调用 check_functions 之前的最后一个全局检查。即使已报告错误，分析器仍可继续收集诊断；真正阻止 lowering 的错误闸门在 main.cpp。&quot;,&quot;source&quot;:&quot;semantic.cpp:670–683&quot;,&quot;children&quot;:[]},{&quot;id&quot;:&quot;function&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;title&quot;:&quot;Ⅱ · 01 为每个函数建立检查语境&quot;,&quot;edge&quot;:&quot;run → check_functions → check_function&quot;,&quot;lines&quot;:[&quot;遍历普通函数和关联函数，按已解析签名检查正文&quot;,&quot;向函数体传入返回类型；结束后再确认正文结果兼容&quot;],&quot;explain&quot;:&quot;这里开始深入函数体。check_function 清空并新建作用域，设置 current_function，绑定 self 和参数，然后调用 check_expr(body, resultType)。正文完成后检查结果可转换到函数返回类型，并清除当前函数指针。&quot;,&quot;source&quot;:&quot;semantic.cpp:685–720&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;scope&quot;,&quot;title&quot;:&quot;scope · 词法作用域栈&quot;,&quot;edge&quot;:&quot;check_function / check_block → scopes_&quot;,&quot;lines&quot;:[&quot;局部名 → 类型、mut、声明 ID&quot;,&quot;进入 block 压栈，退出时弹栈&quot;,&quot;lookup 从内向外找，支持同名遮蔽&quot;],&quot;explain&quot;:&quot;这是活动的栈，不是 collect_items 生成的持久作用域树。参数在函数入口加入，局部 let 在其初始化器检查之后加入；使用点记录所查到声明的 SymbolId。&quot;,&quot;source&quot;:&quot;semantic.cpp:692–727,1090–1139&quot;},{&quot;id&quot;:&quot;self&quot;,&quot;title&quot;:&quot;self · 参数与返回语境&quot;,&quot;edge&quot;:&quot;check_function → record_symbol&quot;,&quot;lines&quot;:[&quot;按签名绑定普通参数&quot;,&quot;按 &amp;self / &amp;mut self 等形状绑定 self&quot;,&quot;current_function 提供 owner 与返回类型&quot;],&quot;explain&quot;:&quot;普通参数有自己的声明 ID；self 的绑定使用当前方法的声明 ID。current_function 的 owner 供 Self 路径解释使用，result 供 return 检查使用。&quot;,&quot;source&quot;:&quot;semantic.cpp:692–720&quot;},{&quot;id&quot;:&quot;loop-stack&quot;,&quot;title&quot;:&quot;loop · 循环语境栈&quot;,&quot;edge&quot;:&quot;check_loop / check_while → loops_&quot;,&quot;lines&quot;:[&quot;每层保存期望结果和 break 类型&quot;,&quot;break / continue 只作用于最近循环&quot;,&quot;退出该循环时弹栈并核对结果&quot;],&quot;explain&quot;:&quot;loop 可接收 break value；while 对应 Unit 目标。检查 while 条件时会暂时隔离外围循环上下文，避免条件中的跳转错误地绑定外围循环。&quot;,&quot;source&quot;:&quot;semantic.cpp:1174–1209,1655–1672&quot;}]},{&quot;id&quot;:&quot;dispatch&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;parent&quot;:&quot;function&quot;,&quot;title&quot;:&quot;Ⅱ · 递归入口：一棵表达式树，双向信息流&quot;,&quot;edge&quot;:&quot;check_function → check_expr(body, 返回类型)&quot;,&quot;lines&quot;:[&quot;向下：父节点给子节点期望类型 expected（可为空）&quot;,&quot;向上：子节点返回 ExprInfo＝实际类型 + 访问属性&quot;],&quot;explain&quot;:&quot;以下所有种类都是 check_expr 的分派分支，不是依次执行的步骤。遇到子表达式时，专门检查函数再次调用 check_expr；递归终止于字面量、路径等叶子。期望类型只在实现允许的位置传播，不是通用全局约束求解。&quot;,&quot;source&quot;:&quot;semantic.cpp:850–908&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;integer&quot;,&quot;title&quot;:&quot;integer · 整数字面量&quot;,&quot;edge&quot;:&quot;check_expr → literal_type&quot;,&quot;lines&quot;:[&quot;无后缀：参考 expected 整数类型&quot;,&quot;有后缀：按后缀决定类型&quot;,&quot;无上下文：默认 i32；检查范围&quot;],&quot;explain&quot;:&quot;例如 let n: usize = 3 会把 usize 传给整数 3。函数参数、字段、数组元素和返回值也能提供这种局部语境。不会根据更晚的语句反向推断已经建立的局部绑定。&quot;,&quot;source&quot;:&quot;semantic.cpp:774–798,856–857&quot;},{&quot;id&quot;:&quot;literal&quot;,&quot;title&quot;:&quot;bool · unit&quot;,&quot;edge&quot;:&quot;check_expr → ty&quot;,&quot;lines&quot;:[&quot;true / false → Bool&quot;,&quot;() → Unit&quot;,&quot;没有子表达式，无须查作用域&quot;],&quot;explain&quot;:&quot;Boolean 与 Unit 在 check_expr 中直接创建语义类型。它们不是整数推断的分支，也不通过期望类型随意变成其他类型。&quot;,&quot;source&quot;:&quot;semantic.cpp:858–861&quot;},{&quot;id&quot;:&quot;path&quot;,&quot;title&quot;:&quot;path · 名字指向谁&quot;,&quot;edge&quot;:&quot;check_expr → check_path&quot;,&quot;lines&quot;:[&quot;单名优先查局部，再查全局实体&quot;,&quot;限定路径查关联项；Self 替换 owner&quot;,&quot;返回类型 + 符号；函数另带 target&quot;],&quot;explain&quot;:&quot;join_path 组合路径；lookup 查局部。builtin_function 与 constructor_path 识别内建候选。普通局部绑定是 place；函数路径返回 Function 类型标记和确定名字。候选路径识别不等于调用参数已经合法。&quot;,&quot;source&quot;:&quot;semantic.cpp:910–980,1686–1694&quot;},{&quot;id&quot;:&quot;array&quot;,&quot;title&quot;:&quot;array · 元素 + 长度&quot;,&quot;edge&quot;:&quot;check_expr → check_array&quot;,&quot;lines&quot;:[&quot;[a,b]：逐元素检查并求公共类型&quot;,&quot;[x;N]：N 为编译期长度；多份需 Copy&quot;,&quot;空数组需上下文，核对类型和长度&quot;],&quot;explain&quot;:&quot;从 expected Array 取得元素类型和长度。列表元素通过 common_type 做有方向的有限适配，必要时记录调整；重复式通过 supports 检查 Copy。次数不接受任意局部变量。&quot;,&quot;source&quot;:&quot;semantic.cpp:982–1055&quot;},{&quot;id&quot;:&quot;struct-expr&quot;,&quot;title&quot;:&quot;struct · 命名字段初始化&quot;,&quot;edge&quot;:&quot;check_expr → check_struct&quot;,&quot;lines&quot;:[&quot;查结构体声明，处理 Self&quot;,&quot;字段声明类型向下约束初始化值&quot;,&quot;拒绝未知、重复和遗漏字段&quot;],&quot;explain&quot;:&quot;结构体字面量的每个字段表达式都递归 check_expr，并与声明中的字段类型核对。最终返回命名 Struct 类型并带结构体符号身份。&quot;,&quot;source&quot;:&quot;semantic.cpp:1057–1088&quot;},{&quot;id&quot;:&quot;block&quot;,&quot;title&quot;:&quot;block · 语句与尾值&quot;,&quot;edge&quot;:&quot;check_expr → check_block&quot;,&quot;lines&quot;:[&quot;压入作用域，按 stmt 顺序处理&quot;,&quot;let 先检查初值，再登记新名字&quot;,&quot;最后无分号表达式接收 expected&quot;],&quot;explain&quot;:&quot;Empty 直接跳过。let 有注解则 resolve_type 后约束初值，没有注解则使用初值类型。非尾部无分号表达式必须是 Unit/Never；尾表达式决定块结果，最后的 Never 也可成为块结果；退出时弹出作用域。&quot;,&quot;source&quot;:&quot;semantic.cpp:1090–1139&quot;},{&quot;id&quot;:&quot;if&quot;,&quot;title&quot;:&quot;if · 条件与分支汇合&quot;,&quot;edge&quot;:&quot;check_expr → check_if&quot;,&quot;lines&quot;:[&quot;condition → Bool；两分支继承 expected&quot;,&quot;有 else：按可转换方向选择公共类型&quot;,&quot;无 else：then 只能 () / !；整体为 ()&quot;],&quot;explain&quot;:&quot;先处理 Never 分支，让另一分支决定正常结果。其余先试 else→then，再试 then→else；可兼容时用 append_adjustments 回填需要转换的分支。两向均失败才报类型冲突，并非完整的泛型 LUB 算法。&quot;,&quot;source&quot;:&quot;semantic.cpp:1141–1172&quot;},{&quot;id&quot;:&quot;loop&quot;,&quot;title&quot;:&quot;loop · 由 break 决定结果&quot;,&quot;edge&quot;:&quot;check_expr → check_loop&quot;,&quot;lines&quot;:[&quot;循环体要求 Unit / Never&quot;,&quot;结果取 expected，否则取首个 break 类型&quot;,&quot;检查其余 break；没有 break → Never&quot;],&quot;explain&quot;:&quot;检查体之前 push LoopInfo，体检查结束后 pop。所有 break value 都已在相应 check_break 中被检查。当前实现不对 break 集合运行一般的不动点求解。&quot;,&quot;source&quot;:&quot;semantic.cpp:1174–1189&quot;},{&quot;id&quot;:&quot;while&quot;,&quot;title&quot;:&quot;while · 条件与循环体&quot;,&quot;edge&quot;:&quot;check_expr → check_while&quot;,&quot;lines&quot;:[&quot;条件必须 Bool；体须 Unit / Never&quot;,&quot;条件检查时暂时隔离外围 loops&quot;,&quot;禁止带值 break；整个 while 为 ()&quot;],&quot;explain&quot;:&quot;while 条件仍能包含自身内部新建循环的合法跳转，但不能借用条件外面的循环上下文。正文在期望 Unit 的循环语境中检查。&quot;,&quot;source&quot;:&quot;semantic.cpp:1191–1209&quot;},{&quot;id&quot;:&quot;unary&quot;,&quot;title&quot;:&quot;unary · 借用与一元运算&quot;,&quot;edge&quot;:&quot;check_expr → check_unary&quot;,&quot;lines&quot;:[&quot;&amp; / &amp;mut：构造引用，检查写权限&quot;,&quot;*：Ref / Box → 元素 place&quot;,&quot;!：bool / 整数；-：有符号整数&quot;],&quot;explain&quot;:&quot;借用子表达式不接受外部 expected；当前实现允许借用临时值。&amp;mut 拒绝不可变 place 或 access_locked。显式解引用计算 place、可写性并传播共享访问锁；&amp;&amp; 表示两层借用。&quot;,&quot;source&quot;:&quot;semantic.cpp:1211–1252&quot;},{&quot;id&quot;:&quot;binary&quot;,&quot;title&quot;:&quot;binary · 两个操作数&quot;,&quot;edge&quot;:&quot;check_expr → check_binary&quot;,&quot;lines&quot;:[&quot;先检查左；左类型作为右的有限语境&quot;,&quot;逻辑 / 比较 → Bool；算术等 → 数值类型&quot;,&quot;相等要求 PartialEq；移位检查整数&quot;],&quot;explain&quot;:&quot;scalar_operand 在部分规则中剥去一层共享引用。普通整数运算要求相同类型，移位允许两侧整数类型不同；逻辑运算要求原始两侧 Bool。语义访问先后不代表运行时求值顺序。&quot;,&quot;source&quot;:&quot;semantic.cpp:1254–1312&quot;},{&quot;id&quot;:&quot;assign&quot;,&quot;title&quot;:&quot;assign · 目标位置与右值&quot;,&quot;edge&quot;:&quot;check_expr → check_assignment&quot;,&quot;lines&quot;:[&quot;左侧必须 place 且可写&quot;,&quot;左类型向下约束右侧表达式&quot;,&quot;普通 / 复合赋值各自核对；结果 ()&quot;],&quot;explain&quot;:&quot;仅有类型兼容并不足以赋值，目标还必须有可修改的存储位置。复合赋值继续检查标量与运算符规则。lowering 对赋值的运行时顺序另有安排，不能从这里的访问顺序推导。&quot;,&quot;source&quot;:&quot;semantic.cpp:1314–1341&quot;},{&quot;id&quot;:&quot;cast&quot;,&quot;title&quot;:&quot;cast · 显式 as&quot;,&quot;edge&quot;:&quot;check_expr → check_cast&quot;,&quot;lines&quot;:[&quot;检查源表达式；resolve_type 解析目标&quot;,&quot;仅允许 整数→整数、bool→整数&quot;,&quot;返回目标类型；非法转换记录诊断&quot;],&quot;explain&quot;:&quot;这是显式转换的规则，不等同于隐式 coercible。即使为了错误恢复返回目标类型，只要 diagnostics 有错误也不能进入后端。&quot;,&quot;source&quot;:&quot;semantic.cpp:1343–1356&quot;},{&quot;id&quot;:&quot;call&quot;,&quot;title&quot;:&quot;call · 函数与关联调用&quot;,&quot;edge&quot;:&quot;check_expr → check_call&quot;,&quot;lines&quot;:[&quot;先检查 callee，确定签名与 target&quot;,&quot;参数个数与形参期望类型逐项核对&quot;,&quot;普通函数 / 关联函数 / 内建调用&quot;],&quot;explain&quot;:&quot;check_signature 检查实参。内建包括 I/O、Box::new、Vec::new 和支持的关联操作；构造容器需要具体类型实参。限定名调用方法时 self 是显式实参。成功返回结果类型和调用目标。&quot;,&quot;source&quot;:&quot;semantic.cpp:1358–1470&quot;},{&quot;id&quot;:&quot;method&quot;,&quot;title&quot;:&quot;method · 接收者 + 实参&quot;,&quot;edge&quot;:&quot;check_expr → check_method&quot;,&quot;lines&quot;:[&quot;接收者沿 Ref / Box 自动解引用&quot;,&quot;查内建 / struct 方法；核对 self 权限&quot;,&quot;检查实参，并记录接收者借用动作&quot;],&quot;explain&quot;:&quot;check_method_signature 检查显式参数。len/is_empty、Vec 修改操作和 clone 有各自候选和能力规则。点调用的用户方法必须有 self；可变 self 要通过 writable。调整挂在方法调用事实上，描述如何传递接收者。&quot;,&quot;source&quot;:&quot;semantic.cpp:1472–1582&quot;},{&quot;id&quot;:&quot;field&quot;,&quot;title&quot;:&quot;field · 字段投影&quot;,&quot;edge&quot;:&quot;check_expr → check_field&quot;,&quot;lines&quot;:[&quot;基对象穿透 Ref / Box&quot;,&quot;核验 struct 与字段，找到字段 ID&quot;,&quot;返回字段 place，传播可写性与锁&quot;],&quot;explain&quot;:&quot;中间遇到共享引用会锁定访问，不能靠更深层的可变引用恢复写权限。自动解引用动作附加到基表达式事实。访问字段并不普遍要求源表达式本身先是 place。&quot;,&quot;source&quot;:&quot;semantic.cpp:1584–1619&quot;},{&quot;id&quot;:&quot;index&quot;,&quot;title&quot;:&quot;index · 元素投影&quot;,&quot;edge&quot;:&quot;check_expr → check_index&quot;,&quot;lines&quot;:[&quot;index 子表达式要求 usize&quot;,&quot;穿透 Ref / Box 后要求 array / Vec&quot;,&quot;返回元素 place；只读 Vec 访问加锁&quot;],&quot;explain&quot;:&quot;索引产生的 ExprInfo 除元素类型外还携带 place、可变性及访问锁。锁用于限制从只读容器访问中获得的后续写权限，不等同于完整借用冲突分析。&quot;,&quot;source&quot;:&quot;semantic.cpp:1621–1653&quot;},{&quot;id&quot;:&quot;break&quot;,&quot;title&quot;:&quot;break · 把类型送回循环&quot;,&quot;edge&quot;:&quot;check_expr → check_break&quot;,&quot;lines&quot;:[&quot;必须存在最近循环&quot;,&quot;可选 value 接收循环 expected&quot;,&quot;把 value 类型加入 break_types；返回 !&quot;],&quot;explain&quot;:&quot;无 value 时使用 Unit。有 value 时递归 check_expr。当前循环之后统一核对收集到的 break 类型；break 自己不向后续正常路径提供值，因此类型为 Never。&quot;,&quot;source&quot;:&quot;semantic.cpp:1655–1666&quot;},{&quot;id&quot;:&quot;continue&quot;,&quot;title&quot;:&quot;continue · 下一次迭代&quot;,&quot;edge&quot;:&quot;check_expr → check_continue&quot;,&quot;lines&quot;:[&quot;必须位于可用循环语境&quot;,&quot;不携带普通结果值&quot;,&quot;返回 Never（!）&quot;],&quot;explain&quot;:&quot;continue 检查 loops_ 是否为空；它改变控制流而不产生普通值。这里记录静态事实，不生成实际循环跳转指令。&quot;,&quot;source&quot;:&quot;semantic.cpp:1668–1672&quot;},{&quot;id&quot;:&quot;return&quot;,&quot;title&quot;:&quot;return · 交回函数结果&quot;,&quot;edge&quot;:&quot;check_expr → check_return&quot;,&quot;lines&quot;:[&quot;value 接收函数声明的返回类型&quot;,&quot;无 value 当作 Unit；检查兼容性&quot;,&quot;整个 return 表达式为 Never（!）&quot;],&quot;explain&quot;:&quot;返回值与 current_function 的 result 匹配，而不是与最近块或循环匹配。无论带不带返回值，return 节点本身均不回到正常的下一表达式。&quot;,&quot;source&quot;:&quot;semantic.cpp:1674–1684&quot;}]},{&quot;id&quot;:&quot;block-steps&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;parent&quot;:&quot;dispatch&quot;,&quot;title&quot;:&quot;Ⅱ · block 展开：局部名字何时生效&quot;,&quot;edge&quot;:&quot;check_expr → check_block：按顺序处理 stmt&quot;,&quot;lines&quot;:[&quot;进入块先压栈；结束块再弹栈，不让局部名字泄漏&quot;,&quot;以下展开 block 分支，不是额外遍历；Empty 直接跳过&quot;],&quot;explain&quot;:&quot;一个块的父节点可以是函数体、分支、循环或另一个表达式。块内部按语句顺序更新作用域，最后决定块的结果类型。let 的类型注解是 ast::Type，不是普通表达式。&quot;,&quot;source&quot;:&quot;semantic.cpp:1090–1139&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;let-type&quot;,&quot;title&quot;:&quot;let · 注解与初始化器&quot;,&quot;edge&quot;:&quot;check_block → resolve_type / check_expr&quot;,&quot;lines&quot;:[&quot;有注解：解析注解，再约束初值&quot;,&quot;无注解：用初值的实际类型&quot;,&quot;新名字此时尚未加入作用域&quot;],&quot;explain&quot;:&quot;例如 let x = x + 1 的初始化器可以引用旧的 x，而不是正在声明的自己。有注解时检查 coercible；若要求可变引用，还要检查初值是否被共享访问锁定。&quot;,&quot;source&quot;:&quot;semantic.cpp:1096–1118&quot;},{&quot;id&quot;:&quot;let-bind&quot;,&quot;title&quot;:&quot;let · 登记新局部绑定&quot;,&quot;edge&quot;:&quot;check_block → record_symbol&quot;,&quot;lines&quot;:[&quot;初值检查后，记录局部声明身份&quot;,&quot;把名字、类型、mut、ID 放入栈顶&quot;,&quot;后续 lookup 才会看见新的绑定&quot;],&quot;explain&quot;:&quot;同层同名绑定更新当前名字表，但已有使用点保存的是各自解析时的声明 SymbolId，因而仍能区别旧值和新值。&quot;,&quot;source&quot;:&quot;semantic.cpp:1119–1128&quot;},{&quot;id&quot;:&quot;stmt-expr&quot;,&quot;title&quot;:&quot;expr stmt · 丢弃值还是返回值&quot;,&quot;edge&quot;:&quot;check_block → check_expr&quot;,&quot;lines&quot;:[&quot;末尾无分号：继承块 expected&quot;,&quot;非尾部无分号：必须 Unit / Never&quot;,&quot;尾值或末尾 Never 决定块结果&quot;],&quot;explain&quot;:&quot;普通带分号语句不会把一个正常值当成块结果。块初始结果为 Unit；最后一个表达式若无分号或为 Never 才更新结果。这里不是通用的不可达代码剔除。&quot;,&quot;source&quot;:&quot;semantic.cpp:1130–1139&quot;}]},{&quot;id&quot;:&quot;rules&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;parent&quot;:&quot;dispatch&quot;,&quot;title&quot;:&quot;Ⅱ · 共享判定：类型、位置、权限、控制流&quot;,&quot;edge&quot;:&quot;各 check_* 分支 → 共享助手（在递归内调用）&quot;,&quot;lines&quot;:[&quot;这是递归检查中的共享规则，不是之后再遍历一次 AST&quot;,&quot;类型相同、可兼容、可写、控制流结果，是不同问题&quot;],&quot;explain&quot;:&quot;专门检查函数在各自语境中调用这些助手。check_expr 会在兼容时补调整并记录事实，但并非只要 expected 不同就统一报错；不兼容诊断主要由 let、调用、返回等具体检查点执行。&quot;,&quot;source&quot;:&quot;semantic.cpp:729–908；各 check_*&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;match&quot;,&quot;title&quot;:&quot;类型 · 相同还是可适配&quot;,&quot;edge&quot;:&quot;same / coercible / common_type&quot;,&quot;lines&quot;:[&quot;same：结构比较，不比较指针地址&quot;,&quot;coercible：从实际类型到期望类型&quot;,&quot;common_type：先试后→前，再试前→后&quot;],&quot;explain&quot;:&quot;same 比较种类、命名类型名字、数组长度和 element、引用可变性等。coercible 允许同型、Never 和受限引用转换；Error 被宽容处理以减少级联错误。common_type 用于数组；if 自己按相似顺序分支判断。&quot;,&quot;source&quot;:&quot;semantic.cpp:37–55,729–756&quot;},{&quot;id&quot;:&quot;permission&quot;,&quot;title&quot;:&quot;位置 / 权限 · 能不能写&quot;,&quot;edge&quot;:&quot;is_place / is_mutable / writable&quot;,&quot;lines&quot;:[&quot;place：表达式代表可定位位置&quot;,&quot;mutable：该位置是否可写&quot;,&quot;locked：共享访问限制不能被绕开&quot;],&quot;explain&quot;:&quot;赋值必须是可写 place。方法接收者还会用 writable：先拒绝锁定，穿透 Box，再按引用 mut 或位置属性决定。当前实现并不一概拒绝临时对象上的借用、字段投影或方法调用。&quot;,&quot;source&quot;:&quot;semantic.cpp:758–767,1211–1252,1314–1341&quot;},{&quot;id&quot;:&quot;converge&quot;,&quot;title&quot;:&quot;控制流 · 正常结果如何汇合&quot;,&quot;edge&quot;:&quot;check_if / check_loop / check_while&quot;,&quot;lines&quot;:[&quot;if：选择可适配的分支结果&quot;,&quot;loop：统一所有 break value&quot;,&quot;Never 可适配任意目标，不提供普通值&quot;],&quot;explain&quot;:&quot;类型检查只做当前实现的局部收敛：不是完整控制流可达性分析，也不是通用约束网络。Never 代表不能正常返回值，Error 代表分析失败占位，二者不能混淆。&quot;,&quot;source&quot;:&quot;semantic.cpp:1141–1209,1655–1684&quot;},{&quot;id&quot;:&quot;type-tools&quot;,&quot;title&quot;:&quot;类型构造 · 辅助判断&quot;,&quot;edge&quot;:&quot;ty / compound / integer / signed_integer&quot;,&quot;lines&quot;:[&quot;ty：新建对象，没有类型驻留池&quot;,&quot;compound：挂上 element 与 mut&quot;,&quot;整数分类供字面量、运算与 as 使用&quot;],&quot;explain&quot;:&quot;没有类型驻留池或统一指针身份：ty 用 make_shared 创建对象，两个 i32 指针可不同但 same 返回 true。TyPtr 是递归结构的共享指针，不等于 interning。&quot;,&quot;source&quot;:&quot;semantic.cpp:24–66&quot;},{&quot;id&quot;:&quot;path-lookup&quot;,&quot;title&quot;:&quot;路径查找 · 词法与限定名&quot;,&quot;edge&quot;:&quot;check_path → join_path / lookup&quot;,&quot;lines&quot;:[&quot;join_path：组成 :: 限定路径&quot;,&quot;lookup：作用域栈由内向外找&quot;,&quot;Self 按当前函数的 owner 解释&quot;],&quot;explain&quot;:&quot;路径只返回解析结果，不执行函数调用。找到局部声明时把 Binding 转成具有 symbol、type 和 mut 信息的 place；找不到再尝试其他适用的全局或关联实体。&quot;,&quot;source&quot;:&quot;semantic.cpp:722–727,910–966,1686–1694&quot;},{&quot;id&quot;:&quot;builtins&quot;,&quot;title&quot;:&quot;内建候选 · 还不是合法调用&quot;,&quot;edge&quot;:&quot;check_path → builtin_function / constructor_path&quot;,&quot;lines&quot;:[&quot;识别 I/O 和容器关联路径&quot;,&quot;struct::clone 也是候选之一&quot;,&quot;参数、类型实参与能力稍后检查&quot;],&quot;explain&quot;:&quot;constructor_path 只是让特定路径进入 check_call 的内建分派，不保证每个候选操作适用于所有容器。最终目标和结果要由具体调用分支确认。&quot;,&quot;source&quot;:&quot;semantic.cpp:959–980&quot;},{&quot;id&quot;:&quot;call-args&quot;,&quot;title&quot;:&quot;call · 形参与实参配对&quot;,&quot;edge&quot;:&quot;check_call → check_signature&quot;,&quot;lines&quot;:[&quot;先检查实参数量&quot;,&quot;形参类型作为实参 expected&quot;,&quot;再检查兼容及可变引用访问限制&quot;],&quot;explain&quot;:&quot;数量不符仍检查已提供的参数以收集错误。普通签名检查还拒绝把 access_locked 的结果当可变引用传递。函数调用返回签名给出的结果类型。&quot;,&quot;source&quot;:&quot;semantic.cpp:1454–1470&quot;},{&quot;id&quot;:&quot;method-args&quot;,&quot;title&quot;:&quot;method · 显式实参配对&quot;,&quot;edge&quot;:&quot;check_method → check_method_signature&quot;,&quot;lines&quot;:[&quot;self 在接收者路径中单独处理&quot;,&quot;这里匹配剩余实参数量与类型&quot;,&quot;调用结果采用方法声明的返回类型&quot;],&quot;explain&quot;:&quot;接收者的自动解引用、共享或可变借用与权限核验由 check_method 完成；此助手检查点号调用中括号里的显式实参。&quot;,&quot;source&quot;:&quot;semantic.cpp:1569–1582&quot;},{&quot;id&quot;:&quot;scalar&quot;,&quot;title&quot;:&quot;标量视图 · 运算规则辅助&quot;,&quot;edge&quot;:&quot;check_binary / check_assignment → scalar_operand&quot;,&quot;lines&quot;:[&quot;适用位置剥掉一层共享引用&quot;,&quot;随后按 bool / 整数规则核验&quot;,&quot;不是通用递归自动解引用&quot;],&quot;explain&quot;:&quot;scalar_operand 不剥可变引用，也不无限穿透引用链。逻辑、比较、按位、移位和赋值运算的可接受组合由各自检查分支明确决定。&quot;,&quot;source&quot;:&quot;semantic.cpp:1254–1341&quot;}]},{&quot;id&quot;:&quot;facts&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;parent&quot;:&quot;dispatch&quot;,&quot;title&quot;:&quot;Ⅱ · 每次递归返回：保留源类型，另记适配动作&quot;,&quot;edge&quot;:&quot;check_expr：coercible → coercion_adjustments → record_expression&quot;,&quot;lines&quot;:[&quot;每个子表达式检查完，返回 ExprInfo 给父节点继续判断&quot;,&quot;同时写 NodeId 旁表；分支 / 投影 / 方法可补充调整&quot;],&quot;explain&quot;:&quot;这一步发生在每次 check_expr 调用的末尾，不是只在整个函数检查完后执行一次。expected 存在且可兼容时计算调整；然后 record_expression 保存节点事实，原实际类型不被替换成 expected。&quot;,&quot;source&quot;:&quot;semantic.cpp:800–908&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;adjust&quot;,&quot;title&quot;:&quot;adjustments · 隐式适配序列&quot;,&quot;edge&quot;:&quot;coercion_adjustments / append_adjustments&quot;,&quot;lines&quot;:[&quot;解引用 · 共享借用 · 可变借用&quot;,&quot;可变引用降为共享 · Never 适配&quot;,&quot;严格保留动作顺序，交后续 lowering&quot;],&quot;explain&quot;:&quot;对应 Dereference、BorrowShared、BorrowMutable、MutToShared、NeverToAny。不是任意 T 都能隐式变成 &amp;T：一般兼容性检查主要处理引用到引用；方法接收者自动借用另有入口。append_adjustments 可回填已检查分支。&quot;,&quot;source&quot;:&quot;semantic.cpp:800–840,1141–1172,1472–1567&quot;},{&quot;id&quot;:&quot;exprinfo&quot;,&quot;title&quot;:&quot;expr · 实际类型与访问事实&quot;,&quot;edge&quot;:&quot;record_expression → expression_facts_&quot;,&quot;lines&quot;:[&quot;NodeId → type、place、mutable、locked&quot;,&quot;附带 symbol、调用 target、adjustments&quot;,&quot;方法的 adjustments 描述接收者传参&quot;],&quot;explain&quot;:&quot;ExprInfo 是递归调用间的临时结果；ExpressionSemantics 是可导出的旁表条目。表达式的源类型与使用位置需要的调整同时存在，后端无须重新猜测。&quot;,&quot;source&quot;:&quot;semantic.cpp:140–156,842–848；semantic.hpp&quot;},{&quot;id&quot;:&quot;errors&quot;,&quot;title&quot;:&quot;诊断 · 标出问题但继续收集&quot;,&quot;edge&quot;:&quot;mismatch → type_name → report&quot;,&quot;lines&quot;:[&quot;report 用 Span 定位错误&quot;,&quot;Error 类型减少后续级联报错&quot;,&quot;报告错误不等于立刻中断 run&quot;],&quot;explain&quot;:&quot;多数专门规则可直接 report，类型不符通常用 mismatch 生成 found/expected 文本。Error 可参与宽容比较是恢复机制，不是合法可执行类型；最终错误闸门会阻止 lowering。&quot;,&quot;source&quot;:&quot;semantic.cpp:68–104,201–203,769–772&quot;}]},{&quot;id&quot;:&quot;output&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;title&quot;:&quot;出口｜原 AST + 语义旁表；诊断决定能否继续&quot;,&quot;edge&quot;:&quot;check_functions 返回 → run 汇总 → main 检查诊断&quot;,&quot;lines&quot;:[&quot;整理并稳定导出事实；不改写 AST，也不新建 HIR&quot;,&quot;无错误 → lower(AST, SemanticResult)；有错误 → 停止&quot;],&quot;explain&quot;:&quot;run 汇总顶层声明计数，按 ID 排序符号和常量，把按 NodeId 保存的表达式与类型事实导出。常量成功值转换为 32 位位模式。main.cpp 的错误检查在 lowering 之前，失败时不能把恢复性 Error 事实交给后端。&quot;,&quot;source&quot;:&quot;semantic.cpp:169–198；main.cpp:133–144&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;out-symbol&quot;,&quot;title&quot;:&quot;symbols · 谁是谁&quot;,&quot;edge&quot;:&quot;record_symbol → run 汇总&quot;,&quot;lines&quot;:[&quot;声明身份、种类、名字、owner&quot;,&quot;包括字段、参数和局部绑定&quot;,&quot;使用点的 symbol 指回具体声明&quot;],&quot;explain&quot;:&quot;相同名字在不同作用域中可以有不同 ID。summary 只计顶层 structures/functions/constants，不代表 symbols 向量里所有实体的总数。&quot;,&quot;source&quot;:&quot;semantic.cpp:176–198；semantic.hpp:58–64&quot;},{&quot;id&quot;:&quot;out-type&quot;,&quot;title&quot;:&quot;resolved types · 注解含义&quot;,&quot;edge&quot;:&quot;resolve_type → run 汇总&quot;,&quot;lines&quot;:[&quot;ast::Type NodeId → 语义类型&quot;,&quot;包括声明、局部注解、cast 目标&quot;,&quot;lowering 复用，不再自行解析类型&quot;],&quot;explain&quot;:&quot;TypeResolution 与表达式类型表用途不同：前者回答一个类型语法节点表示什么，后者回答一个表达式求值有什么类型与权限。&quot;,&quot;source&quot;:&quot;semantic.cpp:263–269；semantic.hpp:87–91&quot;},{&quot;id&quot;:&quot;out-const&quot;,&quot;title&quot;:&quot;constants · 编译期数值&quot;,&quot;edge&quot;:&quot;evaluate_constant → run 汇总&quot;,&quot;lines&quot;:[&quot;仅导出 Done 状态的常量&quot;,&quot;常量 SymbolId → 32 位 bits&quot;,&quot;全局与关联常量统一导出&quot;],&quot;explain&quot;:&quot;内部求值暂存 int64_t；导出的 ConstantValue 用 uint32_t 位模式。不要把内部暂存宽度误认为语言目标机器整数宽度。&quot;,&quot;source&quot;:&quot;semantic.cpp:186–196；semantic.hpp:93–96&quot;},{&quot;id&quot;:&quot;out-next&quot;,&quot;title&quot;:&quot;expressions · 后续转换依据&quot;,&quot;edge&quot;:&quot;SemanticResult → lower / dump_semantic&quot;,&quot;lines&quot;:[&quot;lower：连同原 AST 消费已检查事实&quot;,&quot;dump：输出符号、表达式和调整文本&quot;,&quot;运行时执行次序由 lowering 明确生成&quot;],&quot;explain&quot;:&quot;SemanticResult 还包含 summary、symbols、resolved_types、constants。dump_semantic 是调试输出，不把所有公开表都完整打印，也不会替代语义检查或代码生成。&quot;,&quot;source&quot;:&quot;semantic.cpp:1723–1781；src/main.cpp:133–144&quot;},{&quot;id&quot;:&quot;boundary&quot;,&quot;title&quot;:&quot;当前边界 · 不是完整 Rust&quot;,&quot;edge&quot;:&quot;semantic 的职责边界&quot;,&quot;lines&quot;:[&quot;局部推断，不是通用约束求解器&quot;,&quot;有限 derive，不是开放式 Trait 系统&quot;,&quot;检查访问权限，不是完整借用检查器&quot;],&quot;explain&quot;:&quot;不做完整所有权移动、生命周期和借用冲突证明；不能把 access_locked 等局部安全规则当作完整 borrow checker。本图描述项目现有实现，而不是语言理论上可以实现的全部语义分析功能。&quot;,&quot;source&quot;:&quot;doc/reading/semantic.md:3542–3544&quot;}]},{&quot;id&quot;:&quot;example&quot;,&quot;stage&quot;:&quot;b&quot;,&quot;title&quot;:&quot;贯通例子｜为什么“原类型”与“适配动作”要分开&quot;,&quot;edge&quot;:&quot;同一机制的实例，不是新增分析阶段&quot;,&quot;lines&quot;:[&quot;fn read(p: &amp;i32) -&gt; i32 { *p }&quot;,&quot;函数体内：let b = Box::\u003ci32&gt;::new(7); read(&amp;b);&quot;],&quot;explain&quot;:&quot;例子来自项目阅读文档。它把声明准备、局部作用域、实参检查和旁表输出串起来：read 需要 &amp;i32，而 &amp;b 原本是 &amp;Box\u003ci32&gt;；语义层保存两者的关系，lowering 再生成真实的指针操作。&quot;,&quot;source&quot;:&quot;doc/reading/semantic.md:3534–3540&quot;,&quot;children&quot;:[{&quot;id&quot;:&quot;ex1&quot;,&quot;title&quot;:&quot;① 先登记 read 的规则&quot;,&quot;edge&quot;:&quot;collect_items → resolve_function&quot;,&quot;lines&quot;:[&quot;名字 read 连接函数声明 ID&quot;,&quot;签名：参数 &amp;i32，结果 i32&quot;,&quot;尚未检查调用 read(&amp;b)&quot;],&quot;explain&quot;:&quot;这一步可以先于 read 的函数体或调用它的函数体。调用位置只要查表就能知道参数期望类型。&quot;,&quot;source&quot;:&quot;semantic.cpp:211,485&quot;},{&quot;id&quot;:&quot;ex2&quot;,&quot;title&quot;:&quot;② 再建立局部 b&quot;,&quot;edge&quot;:&quot;check_block → check_call&quot;,&quot;lines&quot;:[&quot;Box::\u003ci32&gt;::new(7) 的结果为 Box\u003ci32&gt;&quot;,&quot;检查初值后，把 b 加入当前作用域&quot;,&quot;绑定记录类型、mut 与声明 ID&quot;],&quot;explain&quot;:&quot;不是 collect_items 收集局部变量。b 只有在正文按顺序执行到这个 let 的静态检查位置后，才对后续名字查找可见。&quot;,&quot;source&quot;:&quot;semantic.cpp:1090,1358&quot;},{&quot;id&quot;:&quot;ex3&quot;,&quot;title&quot;:&quot;③ 把形参期望向下传&quot;,&quot;edge&quot;:&quot;check_call → check_signature → check_expr&quot;,&quot;lines&quot;:[&quot;形参给实参的 expected 是 &amp;i32&quot;,&quot;check_unary 得到 &amp;b 的实际类型&quot;,&quot;实际类型仍然是 &amp;Box\u003ci32&gt;&quot;],&quot;explain&quot;:&quot;借用表达式内部按自身规则检查 b。外部 expected 不把 Box\u003ci32&gt; 偷换成 i32，而是在表达式检查返回后触发兼容性与调整计算。&quot;,&quot;source&quot;:&quot;semantic.cpp:1211,1454,850&quot;},{&quot;id&quot;:&quot;ex4&quot;,&quot;title&quot;:&quot;④ 记录怎样用于此次调用&quot;,&quot;edge&quot;:&quot;coercion_adjustments → record_expression&quot;,&quot;lines&quot;:[&quot;&amp;Box\u003ci32&gt; → Box\u003ci32&gt; → i32&quot;,&quot;两次解引用，再共享借用为 &amp;i32&quot;,&quot;旁表保留原类型及这条动作序列&quot;],&quot;explain&quot;:&quot;coercible 判断引用链可适配。coercion_adjustments 依次记录 Dereference 到 Box\u003ci32&gt;、Dereference 到 i32、BorrowShared 到 &amp;i32。read 调用节点结果类型为 i32；lowering 消费这些事实。&quot;,&quot;source&quot;:&quot;semantic.cpp:729–748,800–831&quot;}]}];
+  const all=groups.flatMap(g=&gt;[g,...g.children]),data=new Map(all.map(n=&gt;[n.id,n]));
+  const NS=&#x27;http://www.w3.org/2000/svg&#x27;,W=5600;
+  const nodes=new Map(),edges=[],regions=new Map();
+  const ctx=document.createElement(&#x27;canvas&#x27;).getContext(&#x27;2d&#x27;);
+  let selected=&#x27;input&#x27;,totalH=0,drag=null,fitMode=true,scale=1;
+  const sheet=root.querySelector(&#x27;#atlas-sheet&#x27;),extent=root.querySelector(&#x27;#atlas-extent&#x27;);
+  function el(tag,attrs={},parent=svg){const v=document.createElementNS(NS,tag);for(const [k,val] of Object.entries(attrs))v.setAttribute(k,val);parent.append(v);return v}
+  const defs=el(&#x27;defs&#x27;);
+  for(const [id,color] of [[&#x27;atlas-arrow&#x27;,&#x27;var(--line)&#x27;],[&#x27;atlas-ref&#x27;,&#x27;var(--ref)&#x27;]]){const m=el(&#x27;marker&#x27;,{id,viewBox:&#x27;0 0 10 10&#x27;,refX:9,refY:5,markerWidth:7,markerHeight:7,orient:&#x27;auto&#x27;},defs);el(&#x27;path&#x27;,{d:&#x27;M0 0L10 5L0 10Z&#x27;,fill:color},m)}
+  const bg=el(&#x27;g&#x27;),edgeLayer=el(&#x27;g&#x27;),nodeLayer=el(&#x27;g&#x27;),labelLayer=el(&#x27;g&#x27;);
+  function wrap(value,max,size=21){ctx.font=`${size}px &quot;Microsoft YaHei&quot;,sans-serif`;const lines=[];let line=&#x27;&#x27;;for(const token of String(value).match(/[A-Za-z_][A-Za-z0-9_:]*|./gu)||[]){const parts=ctx.measureText(token).width&gt;max?[...token]:[token];for(const p of parts){if(line&amp;&amp;ctx.measureText(line+p).width&gt;max){lines.push(line.trim());line=p}else line+=p}}if(line)lines.push(line.trim());return lines}
+  function text(lines,x,y,cls,parent=labelLayer,anchor=&#x27;start&#x27;,step=30){const t=el(&#x27;text&#x27;,{x,y,class:cls,&#x27;text-anchor&#x27;:anchor},parent);[].concat(lines).forEach((line,i)=&gt;{const s=el(&#x27;tspan&#x27;,{x,dy:i?step:0},t);s.textContent=line});return t}
+  function band(id,y,h,title,note,color){text(title,65,y+46,&#x27;layer-title&#x27;);text(note,65,y+84,&#x27;layer-note&#x27;);regions.set(id,{x:24,y,w:W-48,h});}
+  function family(x,y,w,h,title,color){el(&#x27;rect&#x27;,{x,y,width:w,height:h,rx:18,class:&#x27;family-bg&#x27;},bg);if(title)text(title,x+22,y+44,&#x27;family-title&#x27;)}
+  function measure(item,w){const title=wrap(item.title,w-44,24),body=item.lines.flatMap(l=&gt;wrap(l,w-44,19));return {title,body,h:34+title.length*32+12+body.length*30+22}}
+  function node(item,x,y,w,color=&#x27;expr&#x27;,override={}){const merged={...item,...override},m=measure(merged,w),g=el(&#x27;g&#x27;,{class:&#x27;node cursor-interaction&#x27;,&#x27;data-node&#x27;:item.id,style:`--cat:var(--${color})`,&#x27;aria-label&#x27;:merged.title+&#x27;。&#x27;+merged.lines.join(&#x27;。&#x27;)},nodeLayer);el(&#x27;rect&#x27;,{x,y,width:w,height:m.h,rx:14,class:&#x27;node-box&#x27;},g);el(&#x27;path&#x27;,{d:`M ${x+14} ${y+2} H ${x+w-14}`,class:&#x27;node-accent&#x27;},g);text(m.title,x+22,y+36,&#x27;node-title&#x27;,g,&#x27;start&#x27;,32);text(m.body,x+22,y+36+m.title.length*32+12,&#x27;node-note&#x27;,g);const b={id:item.id,x,y,w,h:m.h,cx:x+w/2,cy:y+m.h/2,el:g};nodes.set(item.id,b);g.addEventListener(&#x27;click&#x27;,e=&gt;{e.stopPropagation();choose(item.id)});return b}
+  function edge(from,to,d,label,x,y,kind=&#x27;&#x27;,max=920){const e={from,to};edges.push(e);el(&#x27;path&#x27;,{d,class:&#x27;edge &#x27;+kind,&#x27;data-from&#x27;:from,&#x27;data-to&#x27;:to},edgeLayer);if(label){const g=el(&#x27;g&#x27;,{class:&#x27;edge-label&#x27;,&#x27;data-from&#x27;:from,&#x27;data-to&#x27;:to},labelLayer);const lines=wrap(label,max,19);text(lines,x,y,&#x27;edge-fn&#x27;,g,&#x27;middle&#x27;,25)}return e}
+  function fork(parent,child,bus,label,kind=&#x27;&#x27;,max=500){const a=nodes.get(parent),b=nodes.get(child);edge(parent,child,`M ${a.cx} ${a.y+a.h} V ${bus} H ${b.cx} V ${b.y-6}`,label,b.cx,b.y-30-(wrap(label,max,19).length-1)*25,kind,max)}
+  function grid(group,x,y,w,cols,color){const gap=32,cw=(w-gap*(cols-1))/cols;let yy=y;for(let i=0;i&lt;group.children.length;i+=cols){const row=group.children.slice(i,i+cols);const labelH=Math.max(...row.map(c=&gt;wrap(c.edge,cw-8,19).length))*25;const top=yy+labelH+38;let h=0;for(let j=0;j&lt;row.length;j++){const b=node(row[j],x+j*(cw+gap),top,cw,color);h=Math.max(h,b.h);const head=nodes.get(group.id);const rail=x-18;edge(group.id,b.id,`M ${head.x+18} ${head.y+head.h} H ${rail} V ${yy} H ${b.cx} V ${top-6}`,row[j].edge,b.cx,yy+28,&#x27;&#x27;,cw-8)}yy=top+h+34}return yy}
+  function section(group,x,y,w,cols,color,title){const hnode=node(group,x+28,y+90,w-56,color,title?{title}:{});const end=grid(group,x+28,y+90+hnode.h+42,w-56,cols,color);family(x,y,w,Math.max(end-y+16,330),&#x27;&#x27;,color);text(wrap(group.edge,w-56,19),x+w/2,y+48,&#x27;edge-fn&#x27;,labelLayer,&#x27;middle&#x27;,25);return {head:hnode,end}}
+  text(&#x27;Rx Semantic · 从声明准备到表达式检查&#x27;,60,72,&#x27;canvas-title&#x27;);
+  text(&#x27;节点表示工作单元与语义数据；函数调用写在边上。实线：执行 / 调用　紫色虚线：按种类分派　橙色虚线：递归 / 信息返回&#x27;,60,118,&#x27;canvas-note&#x27;);
+  const input=data.get(&#x27;input&#x27;);
+  band(&#x27;start&#x27;,165,315,&#x27;00  INPUT · 输入与两大阶段&#x27;,&#x27;一份只读 AST，由 analyze → Analyzer::run 组织分析。阶段Ⅰ先建立规则，阶段Ⅱ再检查使用。&#x27;,&#x27;decl&#x27;);
+  const p1=node(data.get(&#x27;purpose-a&#x27;),100,282,1600,&#x27;decl&#x27;);
+  const p0=node(input,2200,282,1200,&#x27;decl&#x27;,{title:&#x27;AST → 语义分析入口&#x27;,lines:[&#x27;输入：只读 AST + diagnostics&#x27;,&#x27;组织：全局准备 → 正文检查 → 结果导出&#x27;]});
+  const p2=node(data.get(&#x27;purpose-b&#x27;),3900,282,1600,&#x27;stmt&#x27;);
+  edge(&#x27;input&#x27;,&#x27;purpose-a&#x27;,`M ${p0.x} ${p0.cy} H ${p1.x+p1.w+6}`,&#x27;准备声明&#x27;,1950,p0.cy-16,&#x27;&#x27;,420);
+  edge(&#x27;purpose-a&#x27;,&#x27;purpose-b&#x27;,`M ${p1.cx} ${p1.y+p1.h} V 512 H ${p2.cx} V ${p2.y+p2.h+6}`,&#x27;全局规则供正文查询&#x27;,W/2,504,&#x27;reference&#x27;,900);
+  edge(&#x27;input&#x27;,&#x27;purpose-b&#x27;,`M ${p0.x+p0.w} ${p0.cy} H ${p2.x-6}`,&#x27;检查正文&#x27;,3650,p0.cy-16,&#x27;&#x27;,420);
+  let y=560;
+  const phaseA=[&#x27;collect&#x27;,&#x27;declarations&#x27;,&#x27;constants&#x27;,&#x27;validation&#x27;,&#x27;entry&#x27;];
+  const titles=[&#x27;01 收集名字&#x27;,&#x27;02 解析声明类型&#x27;,&#x27;03 常量求值与依赖&#x27;,&#x27;04 布局与派生能力&#x27;,&#x27;05 核验 main&#x27;];
+  let aEnd=y+420;const colW=1060;
+  const heads=[];
+  phaseA.forEach((id,i)=&gt;{const group=data.get(id),x=60+i*1100;const out=section(group,x,y+115,colW,2,i===1?&#x27;type&#x27;:&#x27;decl&#x27;,titles[i]);aEnd=Math.max(aEnd,out.end+30);heads.push(out.head)});
+  band(&#x27;phase-a&#x27;,y,aEnd-y+20,&#x27;Ⅰ  GLOBAL DECLARATIONS · 全局声明准备&#x27;,&#x27;按 01 → 05 顺序执行；不检查普通函数体，但类型长度依赖会提前触发受限常量表达式求值。&#x27;,&#x27;decl&#x27;);
+  for(let i=0;i&lt;heads.length;i++){const b=heads[i];if(i===0){edge(&#x27;input&#x27;,b.id,`M ${p0.cx} ${p0.y+p0.h} V ${y+106} H ${b.cx} V ${b.y-6}`,&#x27;&#x27;,0,0)}else{const a=heads[i-1];edge(a.id,b.id,`M ${a.x+a.w} ${a.cy} H ${b.x-6}`,&#x27;&#x27;,0,0)}}
+  y=aEnd+70;
+  const f=data.get(&#x27;function&#x27;);
+  const functionNode=node(f,2200,y+130,1200,&#x27;stmt&#x27;,{title:&#x27;function · 建立函数检查语境&#x27;});
+  const fChildrenY=y+130+functionNode.h+80;
+  let fEnd=0;
+  f.children.forEach((c,i)=&gt;{const b=node(c,160+i*1840,fChildrenY,1600,&#x27;stmt&#x27;);fork(&#x27;function&#x27;,c.id,fChildrenY-62,c.edge,&#x27;&#x27;,1550);fEnd=Math.max(fEnd,b.y+b.h)});
+  band(&#x27;phase-b&#x27;,y,fEnd-y+38,&#x27;Ⅱ  FUNCTION BODIES · 逐函数检查正文&#x27;,&#x27;遍历普通函数和关联函数；全局声明表只读查询，局部作用域与循环上下文随递归进入 / 退出。&#x27;,&#x27;stmt&#x27;);
+  const entry=heads.at(-1);
+  edge(&#x27;entry&#x27;,&#x27;function&#x27;,`M ${entry.x+entry.w} ${entry.cy} H 5548 V ${y+112} H ${functionNode.cx} V ${functionNode.y-6}`,&#x27;run → check_functions → check_function&#x27;,functionNode.cx,y+109,&#x27;&#x27;,1400);
+  y=fEnd+90;
+  const d=data.get(&#x27;dispatch&#x27;);
+  const dispatch=node(d,2180,y+140,1240,&#x27;expr&#x27;,{title:&#x27;expression · 递归分派中心&#x27;});
+  edge(&#x27;function&#x27;,&#x27;dispatch&#x27;,`M ${functionNode.cx} ${functionNode.y+functionNode.h} H 5530 V ${y+108} H ${dispatch.cx} V ${dispatch.y-6}`,&#x27;check_expr(body, 函数返回类型)&#x27;,dispatch.cx,y+110,&#x27;&#x27;,1500);
+  const categories=[
+    [&#x27;基础值与聚合值&#x27;,[&#x27;integer&#x27;,&#x27;literal&#x27;,&#x27;path&#x27;,&#x27;array&#x27;,&#x27;struct-expr&#x27;],&#x27;expr&#x27;],
+    [&#x27;块与结构化控制流&#x27;,[&#x27;block&#x27;,&#x27;if&#x27;,&#x27;loop&#x27;,&#x27;while&#x27;],&#x27;stmt&#x27;],
+    [&#x27;运算与赋值&#x27;,[&#x27;unary&#x27;,&#x27;binary&#x27;,&#x27;assign&#x27;,&#x27;cast&#x27;],&#x27;expr&#x27;],
+    [&#x27;调用与存储访问&#x27;,[&#x27;call&#x27;,&#x27;method&#x27;,&#x27;field&#x27;,&#x27;index&#x27;],&#x27;expr&#x27;],
+    [&#x27;控制流转移&#x27;,[&#x27;break&#x27;,&#x27;continue&#x27;,&#x27;return&#x27;],&#x27;type&#x27;]
+  ];
+  const catY=dispatch.y+dispatch.h+90;let exprEnd=catY;
+  categories.forEach(([title,ids,color],i)=&gt;{const x=60+i*1100;let yy=catY+102;for(const id of ids){const item=data.get(id),lh=wrap(item.edge,930,19).length*25;const b=node(item,x+54,yy+lh+25,952,color);const rail=x+25;edge(&#x27;dispatch&#x27;,id,`M ${dispatch.cx} ${dispatch.y+dispatch.h} V ${catY-28} H ${rail} V ${yy} H ${b.cx} V ${b.y-6}`,item.edge,b.cx,yy+19,&#x27;variant&#x27;,920);yy=b.y+b.h+52}family(x,catY,1060,yy-catY+8,title,color);exprEnd=Math.max(exprEnd,yy+12)});
+  band(&#x27;expressions&#x27;,y,exprEnd-y+70,&#x27;ⅡA  EXPRESSION CHECKS · 21 种表达式（bool 与 unit 合列）&#x27;,&#x27;以下为互斥的分派分支，不是依次执行。父节点向下传 expected；子节点向上返回实际类型、place、权限和目标。&#x27;,&#x27;expr&#x27;);
+  edge(&#x27;dispatch&#x27;,&#x27;dispatch&#x27;,`M 5475 ${exprEnd+26} H 5510 V ${dispatch.cy} H ${dispatch.x+dispatch.w+6}`,&#x27;子表达式再次 check_expr；ExprInfo 向上返回&#x27;,4160,exprEnd+31,&#x27;reference&#x27;,1800);
+  y=exprEnd+115;
+  const helpers=[[&#x27;block-steps&#x27;,&#x27;stmt&#x27;,&#x27;block · 语句顺序与局部作用域&#x27;],[&#x27;rules&#x27;,&#x27;expr&#x27;,&#x27;共用规则 · 类型 / 位置 / 权限 / 控制流&#x27;],[&#x27;facts&#x27;,&#x27;type&#x27;,&#x27;递归返回 · 隐式调整与旁表&#x27;]];
+  let helpersEnd=y;
+  helpers.forEach(([id,color,title],i)=&gt;{const x=60+i*1840,out=section(data.get(id),x,y+112,1800,i===1?3:2,color,title);helpersEnd=Math.max(helpersEnd,out.end+35);edge(&#x27;dispatch&#x27;,id,`M ${dispatch.x+dispatch.w} ${dispatch.cy} H 5528 V ${y+100} H ${out.head.cx} V ${out.head.y-6}`,&#x27;&#x27;,0,0,&#x27;reference&#x27;)});
+  band(&#x27;inside&#x27;,y,helpersEnd-y+25,&#x27;ⅡB  INSIDE THE RECURSION · 递归内部的展开与共用机制&#x27;,&#x27;此处仍属于阶段Ⅱ：block 按序登记局部名字，各检查分支核对规则；每次 check_expr 返回时记录事实，而非另开第三次遍历。&#x27;,&#x27;expr&#x27;);
+  y=helpersEnd+75;
+  const output=data.get(&#x27;output&#x27;);
+  const outHead=node(output,2000,y+135,1600,&#x27;type&#x27;,{title:&#x27;SemanticResult · 导出语义旁表&#x27;});
+  let outEnd=0;const outY=outHead.y+outHead.h+96;
+  output.children.forEach((c,i)=&gt;{const b=node(c,80+i*1100,outY,1020,&#x27;type&#x27;);fork(&#x27;output&#x27;,c.id,outY-75,c.edge,&#x27;reference&#x27;,980);outEnd=Math.max(outEnd,b.y+b.h)});
+  band(&#x27;result&#x27;,y,outEnd-y+45,&#x27;03  OUTPUT · 原 AST + 语义旁表 + 诊断&#x27;,&#x27;run 汇总并按 ID 稳定导出；main.cpp 检查 diagnostics：有错误就停止，无错误才进入 lower(AST, SemanticResult)。&#x27;,&#x27;type&#x27;);
+  edge(&#x27;function&#x27;,&#x27;output&#x27;,`M ${functionNode.x} ${functionNode.cy} H 42 V ${y+111} H ${outHead.cx} V ${outHead.y-6}`,&#x27;check_functions 返回 → run 汇总&#x27;,outHead.cx,y+107,&#x27;&#x27;,1500);
+  edge(&#x27;facts&#x27;,&#x27;output&#x27;,`M ${nodes.get(&#x27;facts&#x27;).x+nodes.get(&#x27;facts&#x27;).w} ${nodes.get(&#x27;facts&#x27;).cy} H 5546 V ${y+100} H ${outHead.x+outHead.w-24} V ${outHead.y-6}`,&#x27;&#x27;,0,0,&#x27;reference&#x27;);
+  y=outEnd+100;
+  const example=data.get(&#x27;example&#x27;);
+  const ex=node(example,1700,y+135,2200,&#x27;type&#x27;,{title:&#x27;贯通例子 · read(&amp;b)&#x27;,lines:[&#x27;fn read(p: &amp;i32) -&gt; i32 { *p }&#x27;,&#x27;let b = Box::&lt;i32&gt;::new(7); read(&amp;b);&#x27;]});
+  let exEnd=0;const exY=ex.y+ex.h+94;
+  example.children.forEach((c,i)=&gt;{const b=node(c,100+i*1380,exY,1280,&#x27;type&#x27;);fork(&#x27;example&#x27;,c.id,exY-75,c.edge,&#x27;reference&#x27;,1230);exEnd=Math.max(exEnd,b.y+b.h)});
+  band(&#x27;walkthrough&#x27;,y,exEnd-y+45,&#x27;04  WALKTHROUGH · 把两大阶段连起来读&#x27;,&#x27;原始类型 &amp;Box&lt;i32&gt; 与用于实参的目标 &amp;i32 同时被保留：两次 Dereference + 一次 BorrowShared，交给 lowering 落实。&#x27;,&#x27;type&#x27;);
+  edge(&#x27;output&#x27;,&#x27;example&#x27;,`M ${outHead.x+outHead.w} ${outHead.cy} H 5550 V ${y+110} H ${ex.cx} V ${ex.y-6}`,&#x27;机制实例 · 不是新增分析阶段&#x27;,ex.cx,y+110,&#x27;reference&#x27;,1800);
+  totalH=exEnd+130;
+  text(&#x27;实现边界：有限的上下文推断与内建 derive；无类型驻留池、无完整 borrow checker；AST 保持不变，事实按 NodeId 关联。&#x27;,65,totalH-30,&#x27;canvas-note&#x27;);
+  svg.dataset.nodes=nodes.size;svg.dataset.edges=edges.length;svg.dataset.canvasHeight=totalH;
+  for(const g of groups){const optGroup=document.createElement(&#x27;optgroup&#x27;);optGroup.label=g.title;for(const item of [g,...g.children]){const option=document.createElement(&#x27;option&#x27;);option.value=item.id;option.textContent=item.title;optGroup.append(option)}select.append(optGroup)}
+  svg.setAttribute(&#x27;viewBox&#x27;,`0 0 ${W} ${totalH}`);svg.setAttribute(&#x27;width&#x27;,W);svg.setAttribute(&#x27;height&#x27;,totalH);
+  function apply(){sheet.style.transform=`scale(${scale})`;extent.style.width=`${W*scale}px`;extent.style.height=`${totalH*scale}px`;root.querySelector(&#x27;#atlas-scale&#x27;).textContent=Math.round(scale*100)+&#x27;%&#x27;}
+  function fit(){scale=stage.clientWidth/W;fitMode=true;apply();stage.scrollLeft=0;stage.scrollTop=0;resetHighlight()}
+  function focus(id,width){const b=nodes.get(id);if(!b)return;scale=Math.max(.55,Math.min(1.1,stage.clientWidth/(width||Math.max(b.w*1.3,1300))));fitMode=false;apply();stage.scrollLeft=b.cx*scale-stage.clientWidth/2;stage.scrollTop=b.y*scale-80;}
+  function resetHighlight(){svg.querySelectorAll(&#x27;.is-focus,.is-dim&#x27;).forEach(n=&gt;n.classList.remove(&#x27;is-focus&#x27;,&#x27;is-dim&#x27;))}
+  function choose(id,move=false){const item=data.get(id);if(!item)return;selected=id;select.value=id;root.querySelector(&#x27;#atlas-detail-title&#x27;).textContent=item.title;root.querySelector(&#x27;#atlas-detail-call&#x27;).textContent=item.edge;root.querySelector(&#x27;#atlas-detail-body&#x27;).textContent=item.explain;root.querySelector(&#x27;#atlas-detail-source&#x27;).textContent=&#x27;代码位置：Rx-Compiler / &#x27;+item.source;resetHighlight();const related=new Set([id]);edges.forEach(e=&gt;{if(e.from===id||e.to===id){related.add(e.from);related.add(e.to)}});nodes.forEach(n=&gt;{n.el.classList.toggle(&#x27;is-dim&#x27;,!related.has(n.id));n.el.classList.toggle(&#x27;is-focus&#x27;,n.id===id)});svg.querySelectorAll(&#x27;.edge,.edge-label&#x27;).forEach(e=&gt;e.classList.toggle(&#x27;is-dim&#x27;,e.dataset.from!==id&amp;&amp;e.dataset.to!==id));if(move)focus(id);}
+  function zoom(factor,cx,cy){const r=stage.getBoundingClientRect(),px=cx===undefined?stage.clientWidth/2:cx-r.left,py=cy===undefined?stage.clientHeight/2:cy-r.top,sx=(stage.scrollLeft+px)/scale,sy=(stage.scrollTop+py)/scale;scale=Math.max(.08,Math.min(1.8,scale/factor));fitMode=false;apply();stage.scrollLeft=sx*scale-px;stage.scrollTop=sy*scale-py;}
+  root.querySelector(&#x27;#atlas-fit&#x27;).onclick=fit;
+  root.querySelector(&#x27;#atlas-pass-a&#x27;).onclick=()=&gt;{choose(&#x27;declarations&#x27;);focus(&#x27;declarations&#x27;,2100)};
+  root.querySelector(&#x27;#atlas-pass-b&#x27;).onclick=()=&gt;{choose(&#x27;dispatch&#x27;);focus(&#x27;dispatch&#x27;,2200)};
+  root.querySelector(&#x27;#atlas-read&#x27;).onclick=()=&gt;focus(selected,1900);
+  root.querySelector(&#x27;#atlas-plus&#x27;).onclick=()=&gt;zoom(.8);root.querySelector(&#x27;#atlas-minus&#x27;).onclick=()=&gt;zoom(1.25);
+  select.addEventListener(&#x27;change&#x27;,()=&gt;choose(select.value,true));
+  stage.addEventListener(&#x27;wheel&#x27;,e=&gt;{if(!e.ctrlKey&amp;&amp;!e.metaKey)return;e.preventDefault();zoom(e.deltaY&gt;0?1.12:.89,e.clientX,e.clientY)},{passive:false});
+  stage.addEventListener(&#x27;pointerdown&#x27;,e=&gt;{if(e.pointerType!==&#x27;mouse&#x27;||e.target.closest(&#x27;.node&#x27;))return;drag={x:e.clientX,y:e.clientY,vx:stage.scrollLeft,vy:stage.scrollTop};stage.setPointerCapture(e.pointerId);stage.classList.add(&#x27;dragging&#x27;)});
+  stage.addEventListener(&#x27;pointermove&#x27;,e=&gt;{if(!drag)return;stage.scrollLeft=drag.vx-(e.clientX-drag.x);stage.scrollTop=drag.vy-(e.clientY-drag.y);});
+  function release(){drag=null;stage.classList.remove(&#x27;dragging&#x27;)};stage.addEventListener(&#x27;pointerup&#x27;,release);stage.addEventListener(&#x27;pointercancel&#x27;,release);
+  svg.addEventListener(&#x27;click&#x27;,e=&gt;{if(!e.target.closest(&#x27;.node&#x27;))resetHighlight()});
+  let rw=0;new ResizeObserver(()=&gt;{const w=stage.clientWidth;if(w===rw)return;rw=w;if(fitMode)fit();}).observe(stage);
+  choose(&#x27;input&#x27;);fit();
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (event) =&gt; {
+    for (const target of event.composedPath()) {
+      if (target?.nodeType === Node.ELEMENT_NODE) {
+        const trigger = target.closest(&quot;[data-tooltip]&quot;);
+        if (trigger) return trigger;
+      }
+    }
+    return null;
+  };
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handlers = {
+    pointerover: handlePointerOpen,
+    pointerdown: handlePointer,
+    pointercancel: handlePointer,
+    click: handleTouchClick,
+    pointerout: handleLeave,
+    focusin: handleFocusIn,
+    focusout: handleLeave,
+    keydown: handleKeyDown,
+    contextmenu: handleContextMenu,
+  };
+  const roots = new Map();
+  const handledEvents = new WeakSet();
+  const handleEvent = (event) =&gt; {
+    if (handledEvents.has(event)) return;
+    handledEvents.add(event);
+    handlers[event.type](event);
+  };
+  const discoverRoots = (node) =&gt; {
+    if (node.shadowRoot) listen(node.shadowRoot);
+    for (const element of node.querySelectorAll(&quot;*&quot;)) {
+      if (element.shadowRoot) listen(element.shadowRoot);
+    }
+  };
+  const listen = (root) =&gt; {
+    if (roots.has(root)) return;
+    for (const type of Object.keys(handlers)) root.addEventListener(type, handleEvent);
+    const observer = new window.MutationObserver((records) =&gt; {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) discoverRoots(node);
+        }
+      }
+      for (const [root, cleanup] of roots) {
+        if (root.host &amp;&amp; !root.host.isConnected) {
+          cleanup();
+          roots.delete(root);
+        }
+      }
+      if (activeTrigger &amp;&amp; !activeTrigger.isConnected) closeTooltip(false);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    roots.set(root, () =&gt; {
+      observer.disconnect();
+      for (const type of Object.keys(handlers)) root.removeEventListener(type, handleEvent);
+    });
+    discoverRoots(root);
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    for (const cleanup of roots.values()) cleanup();
+    roots.clear();
+    tooltip = null;
+  };
+
+  // Events between children of one shadow root never reach the document.
+  listen(document);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+<script>(() => {
+  const frame = document.getElementById("codex-visualization");
+  if (!(frame instanceof HTMLIFrameElement)) {
+    return;
+  }
+  let viewportHeight = globalThis.innerHeight;
+  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    globalThis.location.search,
+  ])}`;
+  const parseState = (serializedState) => {
+    if (
+      typeof serializedState !== "string" ||
+      new TextEncoder().encode(serializedState).length > 16 * 1024
+    ) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    /** @type {unknown} */
+    const state = JSON.parse(serializedState);
+    if (
+      state == null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      ("imageIds" in state &&
+        (!Array.isArray(state.imageIds) || state.imageIds.length > 0))
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = { modelContent: null, privateContent: null, ...state };
+    const canonicalState = JSON.stringify(
+      storedState,
+      (_key, /** @type {unknown} */ value) => {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError("Widget state must contain finite numbers");
+        }
+        return value;
+      },
+    );
+    if (new TextEncoder().encode(canonicalState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    return storedState;
+  };
+  let storage = null;
+  let state = null;
+  try {
+    const localStorage = globalThis.localStorage;
+    const probeKey = `${storageKey}:probe`;
+    localStorage.setItem(probeKey, "1");
+    localStorage.removeItem(probeKey);
+    storage = localStorage;
+    const savedState = storage.getItem(storageKey);
+    if (savedState != null) {
+      try {
+        state = parseState(savedState);
+      } catch {
+        // Invalid saved state does not disable future writes.
+      }
+    }
+  } catch {
+    storage = null;
+  }
+  const initialGlobals = {
+    widgetState: state,
+    statePersistence: storage == null ? "none" : "local",
+  };
+
+  const channel = new MessageChannel();
+  channel.port1.addEventListener("message", (event) => {
+    const data = event.data;
+    if (typeof data !== "object" || data == null) {
+      return;
+    }
+    if (data.type === "widget-state-write") {
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        return;
+      }
+      let ok = false;
+      try {
+        if (storage != null) {
+          const state = parseState(data.state);
+          storage.setItem(storageKey, JSON.stringify(state));
+          ok = true;
+        }
+      } catch {
+        // Storage denial, quota limits, and invalid state return a failed receipt.
+      }
+      channel.port1.postMessage({
+        type: "widget-state-result",
+        id: data.id,
+        ok,
+      });
+      return;
+    }
+    if (data.type === "height") {
+      const height = data.height;
+      if (
+        typeof height === "number" &&
+        Number.isFinite(height) &&
+        height >= 0 &&
+        height <= 10_000
+      ) {
+        frame.style.height = Math.ceil(height) + "px";
+      }
+      return;
+    }
+    if (data.type === "scroll-to") {
+      const top = data.top;
+      if (
+        typeof top === "number" &&
+        Number.isFinite(top) &&
+        top >= 0 &&
+        globalThis.navigator.userActivation?.isActive === true
+      ) {
+        globalThis.scrollTo({
+          top: Math.ceil(
+            globalThis.scrollY + frame.getBoundingClientRect().top + top,
+          ),
+        });
+      }
+      return;
+    }
+    if (data.type === "open-external") {
+      const rawHref = data.href;
+      if (typeof rawHref !== "string") {
+        return;
+      }
+      let href;
+      try {
+        const url = new URL(rawHref, document.baseURI);
+        if (url.protocol !== "https:") {
+          return;
+        }
+        href = url.href;
+      } catch {
+        return;
+      }
+      if (globalThis.navigator.userActivation?.isActive === true) {
+        const anchor = document.createElement("a");
+        anchor.href = href;
+        anchor.rel = "noopener noreferrer";
+        anchor.target = "_blank";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      return;
+    }
+    if (data.type === "follow-up") {
+      const prompt = data.prompt;
+      if (
+        typeof prompt !== "string" ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      const title = data.title;
+      globalThis.prompt(typeof title === "string" ? title : prompt, prompt);
+    }
+  });
+  channel.port1.start();
+  const srcdoc = frame.dataset.srcdoc;
+  if (srcdoc == null) {
+    return;
+  }
+  globalThis.addEventListener("resize", () => {
+    const height = Number.parseFloat(frame.style.height);
+    if (!Number.isFinite(height) || height <= viewportHeight) {
+      frame.style.removeProperty("height");
+    }
+    viewportHeight = globalThis.innerHeight;
+    channel.port1.postMessage({ type: "measure" });
+  });
+  frame.addEventListener(
+    "load",
+    () => {
+      frame.contentWindow?.postMessage(
+        { type: "codex-visualization-initialize" },
+        "*",
+        [channel.port2],
+      );
+    },
+    { once: true },
+  );
+  // Match the trusted bootstrap element, not the same text in an authored title.
+  frame.srcdoc = srcdoc.replace(
+    '<script type="application/json" id="codex-visualization-widget-state">__CODEX_VISUALIZATION_WIDGET_STATE__<\/script>',
+    () =>
+      '<script type="application/json" id="codex-visualization-widget-state">' +
+      JSON.stringify(initialGlobals).replaceAll("<", "\\u003c") +
+      "<\/script>",
+  );
+  delete frame.dataset.srcdoc;
+})();
+</script>
+</body>
+</html>
