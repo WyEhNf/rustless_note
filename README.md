@@ -13,7 +13,7 @@ npm run check:content
 npm run check:pages
 ```
 
-`build:pages` 先静态生成全部文章和章节，再把站内链接改为带 `/rustless_note/` 的 GitHub Pages 地址。输出保留所有旧文章地址的跳转页。正文页面只需要 HTML 与 CSS；两张架构图保留各自的交互脚本。
+`build:pages` 先静态生成全部文章和章节，再把站内链接改为带 `/rustless_note/` 的 GitHub Pages 地址。输出保留正文旧文章地址的跳转页；已删除的附录页面不再生成。正文页面只需要 HTML 与 CSS；两张架构图保留各自的交互脚本。
 
 首次发布时，在仓库的 Settings → Pages 中把 Build and deployment 的 Source 设为 GitHub Actions。之后可以在 Actions 中查看每次发布的结果。
 
@@ -23,11 +23,10 @@ npm run check:pages
 - 二、Semantic：开篇只取 `../semantic.txt` 中 Pass1 之前的说明，下接第 5 组基础概念。
   - Pass1：Semantic 下的次一级章节，对应 6–8 组问题。
   - Pass2：Semantic 下的次一级章节，对应 9–16 组问题。
-- 扩展与附录：17–18 组问题。
 
-开篇保存在 `content/parts/`，细读文章保存在 `content/articles/`。已有 61 篇细读文章（18 篇 Overview、43 篇具体讨论），覆盖 217 个原提纲细点。原有 254 个代码块保留，新增的开篇例子另外保存。标题围绕讨论的问题命名，不加“总览”后缀。
+开篇保存在 `content/parts/`，细读文章保存在 `content/articles/`。现有 52 篇细读文章（16 篇 Overview、36 篇具体讨论），对应主线的 200 个原提纲细点。代码例子随正文修改，保留必要条件，并分别说明正例与反例。标题围绕讨论的问题命名，不加“总览”后缀。
 
-`parent: "semantic"` 指定 Pass1、Pass2 的父章节。`lib/parts.ts` 根据这个关系构造目录和阅读顺序。文章从旧组跨入新阶段时，先进入该阶段的开篇。
+`parent: "semantic"` 指定 Pass1、Pass2 的父章节。`lib/parts.ts` 根据这个关系构造目录和阅读顺序。首次阅读按导读、当前章 Overview、当前章分节依次进行。`content/revision-map.json` 记录合并文章的去向与删除章节；旧正文地址继续跳转，`check:content` 检查主线提纲归属及链接。原例子的历史快照保存在 `merge-baseline.json` 中，用于核对来源，不要求修改后的代码与历史逐字相同。
 
 ## 本地使用
 

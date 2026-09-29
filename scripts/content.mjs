@@ -30,7 +30,7 @@ posts.sort((a,b)=>{const x=a.id.split("-").map(Number),y=b.id.split("-").map(Num
 if(new Set(posts.map(p=>p.id)).size!==posts.length)throw Error("文章编号重复");
 mkdirSync(new URL("../lib/",import.meta.url),{recursive:true});
 writeFileSync(new URL("../lib/posts.json",import.meta.url),JSON.stringify(posts,null,2)+"\n");
-const partOrder=['frontend','semantic','pass1','pass2','extension'];
+const partOrder=['frontend','semantic','pass1','pass2'];
 const parts=compile('parts').sort((a,b)=>partOrder.indexOf(a.id)-partOrder.indexOf(b.id));
 writeFileSync(new URL("../lib/parts.json",import.meta.url),JSON.stringify(parts,null,2)+"\n");
 writeFileSync(new URL("../lib/guides.json",import.meta.url),JSON.stringify(compile('guides'),null,2)+"\n");

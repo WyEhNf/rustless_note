@@ -10,7 +10,7 @@
       3,
       4
     ],
-    "html": "<p class=\"key-idea\"><strong>从源码到AST的转化是编译器工作的第一步，这是一次语法上的变换。</strong></p>\n<h2 id=\"section-1\">CST 与 AST</h2>\n<p>AST 来源于 CST。编译器首先对一段程序进行<strong>词法和语法上的分析</strong>，从语法的角度对程序文本做一个结构上的编排，这就得到了 CST。随后遍历 CST，递归地构建每个节点，把其中的具体元素整理成 AST。</p>\n<pre data-language=\"rust\"><code>fn main() {\n    let x = 1 + 2 * 3;\n}</code></pre>\n<p>读词时可以认出 <code>let</code>、<code>x</code>、<code>+</code> 等内容。语法分析进一步确定：乘法先组成一组，加法的右边是整个 <code>2 * 3</code>。转成 AST 后，就沿着这个关系留下函数、块、绑定和运算。</p>\n<p class=\"key-idea\"><strong>AST 把程序的结构留下来，语义分析再检查这些结构能否配合。</strong></p>\n<h2 id=\"section-2\">Crate 与 Item</h2>\n<p>AST 的根节点是 <strong><code>Crate</code></strong>，包含整份程序的顶层信息。其内部按顺序保存若干 <strong><code>Item</code></strong>，也就是声明单元。当前主要讨论五类：</p>\n<ol>\n<li><strong><code>Use</code></strong>：保存导入的写法，例如 <code>use std::collections::HashMap;</code>。它描述希望建立的名字关系；当前范围还没有完整的模块导入查找。</li>\n<li><strong><code>Struct</code></strong>：声明结构体，说明它有哪些字段。</li>\n<li><strong><code>Const</code></strong>：声明常量，说明常量的类型和初值。</li>\n<li><strong><code>Impl</code></strong>：说明一组关联函数、方法和常量属于哪个类型。</li>\n<li><strong><code>Function</code></strong>：声明函数，说明参数、返回类型和函数体。</li>\n</ol>\n<pre data-language=\"rust\"><code>struct Point { x: i32 }\nconst LIMIT: i32 = 10;\nimpl Point {\n    fn get(&amp;self) -&gt; i32 { self.x }\n}\nfn main() { let p = Point { x: 1 }; }</code></pre>\n<p>这里的顶层依次是结构体、常量、<code>impl</code> 和函数。<code>get</code> 是 <code>Point</code> 的关联成员；<code>let p</code> 则在 <code>main</code> 的函数体里。从根向下阅读时，先看到这些声明，再进入各自的内容。</p>\n<h2 id=\"section-3\">Type 与类型嵌套</h2>\n<p>结构体、常量和 <code>impl</code> 都会用到类型：可能是字段的类型、声明的类型，也可能是关联成员所属的目标类型。函数参数和返回值、局部变量的类型标注，也需要 <strong><code>Type</code></strong>。</p>\n<p><code>Type</code> 本身具有嵌套结构。类型可以由其他类型组合，组合出来的类型又能被继续使用，因此会形成一棵类型子树。</p>\n<pre data-language=\"rust\"><code>let rows: &amp;mut Vec&lt;[i32; 3]&gt;;</code></pre>\n<p>从外向内看，<code>rows</code> 是一个可变引用，指向 <code>Vec</code>；<code>Vec</code> 中的每个元素是长度为 <code>3</code> 的数组，数组元素才是 <code>i32</code>。每一层都说明了不同内容，需要逐层保留。</p>\n<p class=\"key-idea\"><strong><code>Type</code> 会出现在 AST 的多处，不能只把它放在某个固定层级里理解。</strong></p>\n<h2 id=\"section-4\">Block 与 Stmt</h2>\n<p>函数内部由块表达式 <strong><code>Block</code> <code>Expr</code></strong> 构成。块里按顺序保存若干 <strong><code>Stmt</code></strong>，也就是语句。这里主要有局部绑定 <code>let</code>、表达式语句，以及块末尾的尾表达式；单独的分号还可以形成空语句。</p>\n<pre data-language=\"rust\"><code>fn add_one(x: i32) -&gt; i32 {\n    let y = x + 1;\n    y\n}</code></pre>\n<p><code>let y</code> 引入局部名字，初值是加法表达式。最后的 <code>y</code> 没有分号，给这个块提供结果，函数也就返回它。若改成 <code>y;</code>，这个值会被丢弃，块正常结束时得到 <code>Unit</code>，便无法满足声明中的 <code>i32</code>。</p>\n<p>函数和内层块还会影响名字的可见范围，这个范围叫 <strong><code>scope</code></strong>。建树先留下块和语句的关系；具体哪一次名字使用能找到哪条声明，要到语义分析时检查。</p>\n<h2 id=\"section-5\">Expr 的递归嵌套</h2>\n<p><code>Stmt</code> 中的初值和计算内容主要由 <strong><code>Expr</code></strong> 组成。<code>Expr</code> 表示表达式，需要按其种类继续讨论：</p>\n<ul>\n<li><strong>基础值与聚合值</strong>：整数、布尔值和 <code>Unit</code> 是基础值；数组、结构体等把若干值放在一起。路径则通过名字找到要使用的内容。</li>\n<li><strong>分支与循环</strong>：内部带有块表达式；<code>if</code> 和 <code>while</code> 的条件本身也是表达式，因此形成递归嵌套。</li>\n<li><strong>跳转</strong>：<code>break</code>、<code>continue</code>、<code>return</code> 改变程序接下来执行的位置，还可能携带一个表达式。</li>\n<li><strong>运算与转换</strong>：一元运算、二元运算、赋值和类型转换。连续转换要逐层保存，最外层决定最终结果类型。</li>\n<li><strong>后缀表达式</strong>：<code>()</code> 调用函数，<code>.</code> 访问字段或调用方法，<code>[]</code> 访问元素。调用的实参仍然是表达式。</li>\n</ul>\n<pre data-language=\"rust\"><code>let n = if ready { values[0] + 1 } else { 0 };</code></pre>\n<p>整个初值是 <code>if</code>。它包含条件 <code>ready</code> 和两个块；第一个块的尾值是加法，加法左边又是下标访问。这里从 <code>Expr</code> 走进 <code>Block</code>，再走回 <code>Expr</code>，就能看出递归关系。遇到 <code>.get()</code> 时，还要保留方法调用；只写 <code>.x</code> 时，则是字段访问。</p>\n<h2 id=\"section-6\">Primary 与叶子</h2>\n<p><strong><code>Primary</code></strong> 表示文法中可以继续参与运算的基本写法，主要包括字面量、路径和括号表达式。</p>\n<pre data-language=\"rust\"><code>1\nx\n(x + 1) * 2</code></pre>\n<p>整数 <code>1</code> 和路径 <code>x</code> 可以直接成为基本节点。第三行的 <code>(x + 1)</code> 也能作为乘法左侧的 <code>Primary</code>，但其中仍然包含加法。括号确定的分组可以由 AST 的父子关系保留。</p>\n<p>从树的底部看，常见叶子是字面量和路径：字面量直接写出值，路径通过名字找到声明。<code>Primary</code> 的范围还包含括号包住的复杂表达式，所以阅读时要分清<strong>文法中的基本写法</strong>与<strong>树中已经没有表达式孩子的叶子</strong>。</p>\n<p>完整 Rust 中，路径还能找到类型别名。当前子集没有 <code>type</code> 别名声明，这部分放在后面的扩展讨论中。</p>\n<h2 id=\"section-7\">编译期参数与整棵树</h2>\n<p><code>Item</code> 还可能带有泛型参数、生命周期参数和 <code>where</code> 约束。这些属于编译期信息：类型参数说明可以换入什么类型，生命周期参数给引用有效期起名字，约束说明这些参数需要满足什么要求。当前范围只保存其中一部分信息；通用泛型和完整生命周期检查放在扩展部分讨论。</p>\n<p>AST 可以先沿下面这条主干理解。父子之间通过列表或对象连接组织起来，各类节点再保存自己需要的内容。</p>\n<pre data-language=\"text\"><code>Crate：整份程序\n└─ Item：导入、结构体、常量、impl、函数\n   ├─ Type：字段、参数、返回值等类型\n   ├─ 编译期参数：泛型、生命周期与约束\n   └─ 函数体 Block\n      ├─ Stmt：let、表达式语句、尾表达式\n      │  └─ Expr：值、运算、调用、分支、循环、跳转\n      │     ├─ 更小的 Expr\n      │     ├─ Block → Stmt → Expr\n      │     └─ Type：转换目标或类型实参\n      └─ 常见叶子：字面量、路径</code></pre>\n<p class=\"key-idea\"><strong>这条主干帮助我们读树，递归关系决定了它还可以继续向下展开。</strong></p>\n<p>后面的四组内容依次讨论：源码怎样建树、顶层声明怎样组织、类型与路径怎样保存，以及块和表达式怎样继续嵌套。</p>\n",
+    "html": "<p class=\"key-idea\"><strong>从源码到AST的转化是编译器工作的第一步，这是一次语法上的变换。</strong></p>\n<h2 id=\"section-1\">CST 与 AST</h2>\n<p>AST 来源于 CST。编译器首先对一段程序进行<strong>词法和语法上的分析</strong>，从语法的角度对程序文本做一个结构上的编排，这就得到了 CST。随后遍历 CST，递归地构建每个节点，把其中的具体元素整理成 AST。</p>\n<pre data-language=\"rust\"><code>fn main() {\n    let x = 1 + 2 * 3;\n}</code></pre>\n<p>读词时可以认出 <code>let</code>、<code>x</code>、<code>+</code> 等内容。语法分析进一步确定：乘法先组成一组，加法的右边是整个 <code>2 * 3</code>。转成 AST 后，就沿着这个关系留下函数、块、绑定和运算。</p>\n<p class=\"key-idea\"><strong>AST 把程序的结构留下来，语义分析再检查这些结构能否配合。</strong></p>\n<h2 id=\"section-2\">Crate 与 Item</h2>\n<p>AST 的根节点是 <strong><code>Crate</code></strong>，包含整份程序的顶层信息。其内部按顺序保存若干 <strong><code>Item</code></strong>，也就是声明单元。当前主要讨论五类：</p>\n<ol>\n<li><strong><code>Use</code></strong>：保存导入的写法，例如 <code>use std::collections::HashMap;</code>。它描述希望建立的名字关系；当前范围还没有完整的模块导入查找。</li>\n<li><strong><code>Struct</code></strong>：声明结构体，说明它有哪些字段。</li>\n<li><strong><code>Const</code></strong>：声明常量，说明常量的类型和初值。</li>\n<li><strong><code>Impl</code></strong>：说明一组关联函数、方法和常量属于哪个类型。</li>\n<li><strong><code>Function</code></strong>：声明函数，说明参数、返回类型和函数体。</li>\n</ol>\n<pre data-language=\"rust\"><code>struct Point { x: i32 }\nconst LIMIT: i32 = 10;\nimpl Point {\n    fn get(&amp;self) -&gt; i32 { self.x }\n}\nfn main() { let p = Point { x: 1 }; }</code></pre>\n<p>这里的顶层依次是结构体、常量、<code>impl</code> 和函数。<code>get</code> 是 <code>Point</code> 的关联成员；<code>let p</code> 则在 <code>main</code> 的函数体里。从根向下阅读时，先看到这些声明，再进入各自的内容。</p>\n<h2 id=\"section-3\">Type 与类型嵌套</h2>\n<p>结构体、常量和 <code>impl</code> 都会用到类型：可能是字段的类型、声明的类型，也可能是关联成员所属的目标类型。函数参数和返回值、局部变量的类型标注，也需要 <strong><code>Type</code></strong>。</p>\n<p><code>Type</code> 本身具有嵌套结构。类型可以由其他类型组合，组合出来的类型又能被继续使用，因此会形成一棵类型子树。</p>\n<pre data-language=\"rust\"><code>let rows: &amp;mut Vec&lt;[i32; 3]&gt;;</code></pre>\n<p>从外向内看，<code>rows</code> 是一个可变引用，指向 <code>Vec</code>；<code>Vec</code> 中的每个元素是长度为 <code>3</code> 的数组，数组元素才是 <code>i32</code>。每一层都说明了不同内容，需要逐层保留。</p>\n<p class=\"key-idea\"><strong><code>Type</code> 会出现在 AST 的多处，不能只把它放在某个固定层级里理解。</strong></p>\n<h2 id=\"section-4\">Block 与 Stmt</h2>\n<p>函数内部由块表达式 <strong><code>Block</code> <code>Expr</code></strong> 构成。块里按顺序保存若干 <strong><code>Stmt</code></strong>，也就是语句。这里主要有局部绑定 <code>let</code>、表达式语句，以及块末尾的尾表达式；单独的分号还可以形成空语句。</p>\n<pre data-language=\"rust\"><code>fn add_one(x: i32) -&gt; i32 {\n    let y = x + 1;\n    y\n}</code></pre>\n<p><code>let y</code> 引入局部名字，初值是加法表达式。最后的 <code>y</code> 没有分号，给这个块提供结果，函数也就返回它。若改成 <code>y;</code>，这个值会被丢弃，块正常结束时得到 <code>Unit</code>，便无法满足声明中的 <code>i32</code>。</p>\n<p>函数和内层块还会影响名字的可见范围，这个范围叫 <strong><code>scope</code></strong>。建树先留下块和语句的关系；具体哪一次名字使用能找到哪条声明，要到语义分析时检查。</p>\n<h2 id=\"section-5\">Expr 的递归嵌套</h2>\n<p><code>Stmt</code> 中的初值和计算内容主要由 <strong><code>Expr</code></strong> 组成。<code>Expr</code> 表示表达式，需要按其种类继续讨论：</p>\n<ul>\n<li><strong>基础值与聚合值</strong>：整数、布尔值和 <code>Unit</code> 是基础值；数组、结构体等把若干值放在一起。路径则通过名字找到要使用的内容。</li>\n<li><strong>分支与循环</strong>：内部带有块表达式；<code>if</code> 和 <code>while</code> 的条件本身也是表达式，因此形成递归嵌套。</li>\n<li><strong>跳转</strong>：<code>break</code>、<code>continue</code>、<code>return</code> 改变程序接下来执行的位置，还可能携带一个表达式。</li>\n<li><strong>运算与转换</strong>：一元运算、二元运算、赋值和类型转换。连续转换要逐层保存，最外层决定最终结果类型。</li>\n<li><strong>后缀表达式</strong>：<code>()</code> 调用函数，<code>.</code> 访问字段或调用方法，<code>[]</code> 访问元素。调用的实参仍然是表达式。</li>\n</ul>\n<pre data-language=\"rust\"><code>let n = if ready { values[0] + 1 } else { 0 };</code></pre>\n<p>整个初值是 <code>if</code>。它包含条件 <code>ready</code> 和两个块；第一个块的尾值是加法，加法左边又是下标访问。这里从 <code>Expr</code> 走进 <code>Block</code>，再走回 <code>Expr</code>，就能看出递归关系。遇到 <code>.get()</code> 时，还要保留方法调用；只写 <code>.x</code> 时，则是字段访问。</p>\n<h2 id=\"section-6\">Primary 与叶子</h2>\n<p><strong><code>Primary</code></strong> 表示文法中可以继续参与运算的基本写法，主要包括字面量、路径和括号表达式。</p>\n<pre data-language=\"rust\"><code>1\nx\n(x + 1) * 2</code></pre>\n<p>整数 <code>1</code> 和路径 <code>x</code> 可以直接成为基本节点。第三行的 <code>(x + 1)</code> 也能作为乘法左侧的 <code>Primary</code>，但其中仍然包含加法。括号确定的分组可以由 AST 的父子关系保留。</p>\n<p>从树的底部看，常见叶子是字面量和路径：字面量直接写出值，路径通过名字找到声明。<code>Primary</code> 的范围还包含括号包住的复杂表达式，所以阅读时要分清<strong>文法中的基本写法</strong>与<strong>树中已经没有表达式孩子的叶子</strong>。</p>\n<p>当前类型路径可以找到内建类型和用户结构体。类型别名需要额外的声明与查找规则，这里暂不展开。</p>\n<h2 id=\"section-7\">编译期参数与整棵树</h2>\n<p><code>Item</code> 还可能带有泛型参数、生命周期参数和 <code>where</code> 约束。这些属于编译期信息：类型参数说明可以换入什么类型，生命周期参数给引用有效期起名字，约束说明这些参数需要满足什么要求。当前范围只保存其中一部分信息；这些名字能出现在语法树中，还不足以完成通用泛型或引用有效期的检查。</p>\n<p>AST 可以先沿下面这条主干理解。父子之间通过列表或对象连接组织起来，各类节点再保存自己需要的内容。</p>\n<pre data-language=\"text\"><code>Crate：整份程序\n└─ Item：导入、结构体、常量、impl、函数\n   ├─ Type：字段、参数、返回值等类型\n   ├─ 编译期参数：泛型、生命周期与约束\n   └─ 函数体 Block\n      ├─ Stmt：let、表达式语句、尾表达式\n      │  └─ Expr：值、运算、调用、分支、循环、跳转\n      │     ├─ 更小的 Expr\n      │     ├─ Block → Stmt → Expr\n      │     └─ Type：转换目标或类型实参\n      └─ 常见叶子：字面量、路径</code></pre>\n<p class=\"key-idea\"><strong>这条主干帮助我们读树，递归关系决定了它还可以继续向下展开。</strong></p>\n<p>从源码进入这棵树时，先确定词与文法的分组，再按声明、类型和表达式逐层整理。结构保留下来以后，语义分析就能沿这些连接查名字、比较类型。</p>\n",
     "toc": [
       {
         "id": "section-1",
@@ -58,16 +58,16 @@
     "chapters": [
       5
     ],
-    "html": "<h2 id=\"section-1\">语义分析的两项工作</h2>\n<p>现在我们来讨论编译器的语义解析器。</p>\n<p>语义解析器主要解决了两件事情：</p>\n<ol>\n<li><strong>收集与注册符号，并检查声明结构。</strong></li>\n<li><strong>检查表达式的合法性，并记录表达式的语义事实。</strong></li>\n</ol>\n<h2 id=\"section-2\">表达式的对齐</h2>\n<p>一个最基本的认识是Rust这个语言具有以表达式为中心的性质，也就是 <strong>“Everything is an expression”</strong>，语义解析器的一条核心主线是表达式的对齐。</p>\n<p>Rust这门语言中的很多结构都是表达式，包括 <code>if</code>/<code>loop</code> 等控制流、函数体等等。正常返回的表达式具有结果类型，包括 <code>Unit</code>；无法正常返回的表达式具有 <code>Never</code> 类型。结果类型要对齐，可变权限要对齐。当前讨论的范围未实现完整的生命周期与所有权检查。</p>\n<pre data-language=\"rust\"><code>fn choose(flag: bool) -&gt; i32 {\n    if flag { 1 } else { return 2; }\n}</code></pre>\n<p>第一件事先确定 <code>choose</code> 的参数是 <code>bool</code>，返回类型是 <code>i32</code>。第二件事才进入函数体：条件 <code>flag</code> 要满足 <code>bool</code>，正常结束的分支要给出 <code>i32</code>。</p>\n<p><code>return 2</code> 直接离开函数，自身具有 <code>Never</code> 类型；它携带的 <code>2</code> 仍需符合函数的返回类型。若把 <code>2</code> 改成 <code>true</code>，就会发生类型不匹配。<code>Unit</code> 则表示正常结束但没有额外数据，例如空块 <code>{}</code> 的结果 <code>()</code>。</p>\n<p class=\"key-idea\"><strong>先明确名字和声明，再沿表达式检查类型与权限，这两件事构成语义分析的主线。</strong></p>\n<p>这一章先解释两遍检查之间的关系，以及查名字和保存结果分别需要哪些表。后面的「<code>Pass1</code>」与「<code>Pass2</code>」再依次展开这两件事情。</p>\n",
+    "html": "<h2 id=\"section-1\">声明与表达式</h2>\n<p>AST 已经把声明、语句和表达式组织起来。语义分析沿着这些关系继续检查：名字对应哪个声明，类型能否配合，当前位置能否进行相应操作。</p>\n<p>这里的工作分为两遍：<strong>Pass1 收集与登记声明，并确定声明上的要求；Pass2 进入函数体，检查每一次具体使用。</strong></p>\n<pre data-language=\"rust\"><code>fn inc(x: i32) -&gt; i32 { x + 1 }\nfn main() {\n    let value = 1;\n    let answer = inc(value);\n}</code></pre>\n<p>读到 <code>inc(value)</code> 时，需要知道 <code>inc</code> 接收什么类型、返回什么类型。这些要求来自函数声明，可以在检查 <code>main</code> 之前准备好。结构体字段和常量也有声明上的要求，同样需要先取得明确的含义。</p>\n<p>进入 <code>main</code> 后，<code>value</code> 和 <code>answer</code> 才依次成为可见的局部名字。调用中的 <code>value</code> 找到前面的绑定，取得 <code>i32</code> 类型，正好满足 <code>inc</code> 的参数要求。调用又根据返回类型为 <code>answer</code> 提供 <code>i32</code>，声明与使用就这样联系起来。</p>\n<h2 id=\"section-2\">表达式的结果</h2>\n<p>Rust 风格语法中的许多结构都能提供结果。函数体是块表达式，<code>if</code> 可以从分支取得值，<code>loop</code> 可以由 <code>break</code> 带出值。外层表达式需要使用这些结果，因此检查会从整体进入孩子，再根据孩子的结论确定整体。</p>\n<pre data-language=\"rust\"><code>fn choose(flag: bool) -&gt; i32 {\n    if flag { 1 } else { 2 }\n}</code></pre>\n<p><code>flag</code> 决定选择哪条分支，需要是 <code>bool</code>；两条分支提供函数要求的整数。条件和分支都属于表达式，但在整个 <code>if</code> 中承担不同作用，检查要求也随之不同。</p>\n<p class=\"key-idea\"><strong>表达式之间已经有结构上的连接，语义分析让这些连接具有明确的名字、类型和使用要求。</strong></p>\n<p>名字查找需要全局声明和当前作用域，检查所得的结论还需要按节点保留下来。<a href=\"/posts/5.0\">语义分析流程与记录</a>先用一份程序说明这几类信息怎样配合。读到具体规则时，可以继续沿 Pass1 的声明准备和 Pass2 的函数体检查展开。</p>\n",
     "toc": [
       {
         "id": "section-1",
-        "title": "语义分析的两项工作",
+        "title": "声明与表达式",
         "depth": 2
       },
       {
         "id": "section-2",
-        "title": "表达式的对齐",
+        "title": "表达式的结果",
         "depth": 2
       }
     ],
@@ -84,50 +84,25 @@
       8
     ],
     "parent": "semantic",
-    "html": "<p class=\"key-idea\"><strong>语义解析器对程序第一次扫描做的事情是：收集与注册符号。</strong></p>\n<h2 id=\"section-1\">全局登记表</h2>\n<p>在 <code>Pass1</code> 中我们要维护的东西叫做全局登记表，这些表在本次分析过程中一直存在，在这一次Pass中逐步建好，存放全局名字以及关联项的规范拼接名字。同一个命名空间中的重复全局定义会被拒绝，局部 <code>Shadowing</code> 由 <code>Pass2</code> 处理。</p>\n<pre data-language=\"rust\"><code>const LIMIT: i32 = 10;\nfn first() -&gt; i32 { LIMIT }\nfn second() -&gt; i32 { LIMIT }</code></pre>\n<p><code>LIMIT</code> 只声明一次，两个函数都能查到它。检查完 <code>first</code> 后，这条全局记录仍然保留，接着检查 <code>second</code> 时继续使用。若在顶层再声明一个同名常量，就要报告重复定义。</p>\n<h2 id=\"section-2\">NodeID 与 SymbolID</h2>\n<p>解析器的输入来自于 <code>AST</code>，我们需要登记支持的声明，并在使用时解析命名与路径。在设计中，需要区分 <code>NodeID</code> 与 <code>SymbolID</code>。</p>\n<p><code>SymbolID</code> 是声明在语义下的标签，而 <code>NodeID</code> 则是节点在语法结构下的标签。这里直接使用声明节点的 <code>NodeID</code> 作为 <code>SymbolID</code>。在表达式 <code>x+x</code> 中，两个<code>x</code>具有不同的 <code>NodeID</code>，如果引用同一个声明，就应当有相同的 <code>SymbolID</code>。</p>\n<p>所以在记录表达式事实的过程中，一个 <code>NodeID</code> 至多直接关联一个 <code>SymbolID</code>，而一个 <code>SymbolID</code> 可以被多个 <code>NodeID</code> 引用。</p>\n<pre data-language=\"rust\"><code>let x = 1;\nlet sum = x + x;</code></pre>\n<p>两个使用处各有自己的 <code>NodeID</code>，都找到第一行的同一个声明，因此共享这个声明的 <code>SymbolID</code>。加法整体也有节点编号，但它产生的是计算结果，可以没有直接关联的声明。</p>\n<h2 id=\"section-3\">名字分类与保护</h2>\n<p>在收集的过程中，我们需要保护内建名字，这个概念有一些类似保留字，目的是拒绝相应名字被重新定义或遮蔽。检查声明和局部绑定时，都需要考虑这些受保护的名字。</p>\n<p>注册需要进行分类，也就是说类型命名空间与值命名空间之间应该区分。</p>\n<p>因为需要注意的是，在词法阶段 <code>i32</code> 和<code>x</code>都可以是普通的标识符<code>Identifier</code>。语法树区分类型位置与表达式位置，语义阶段进一步识别 <code>i32</code> 这样的内建类型，并确定<code>x</code>引用的具体声明。</p>\n<pre data-language=\"rust\"><code>struct Point { x: i32 }\nfn Point() {}\nconst Point: i32 = 1; // 错误：与函数争用值名字</code></pre>\n<p>按当前规则，结构体名字登记到类型命名空间，函数与常量名字登记到值命名空间。前两行可以分别登记，第三行与函数发生冲突。名字相同，还要继续看它们处在哪一类查找范围中。</p>\n<h2 id=\"section-4\">声明类型解析</h2>\n<p>登记好名字以后，第二步是解析声明类型。这一步包括以下内容。</p>\n<ul>\n<li><p>类型声明的确定，对于嵌套的类型，需要递归解析内部类型；对于 <code>Self</code>，需要根据 <code>owner</code> 确定对应的结构体。当前范围不支持 <code>type</code> 别名语句。</p>\n</li>\n<li><p>明确各个“黑盒”的接口类型，包括 <code>struct</code> 的字段类型，以及 <code>fn</code> 的输入参数与输出类型。需要特别讨论的是 <code>impl</code>。<code>impl</code> 本身没有名字，我们需要先暂存 <code>impl</code>，再将其成员登记到对应目标的关联表中，并保存 <code>owner</code> 关系。</p>\n</li>\n<li><p><strong>常量解析</strong>：这相当于是名称绑定与编译期求值。我们需要展开受支持的常量表达式的依赖关系，检查递归环并确定常量值。由此，可以进一步确定数组等结构的编译期长度。</p>\n</li>\n</ul>\n<h2 id=\"section-5\">常量与依赖</h2>\n<p>需要特别说明的：常量解析中对递归环的判断采用 <code>DFS</code>，当前实现具有 <code>Fresh</code>、<code>Evaluating</code>、<code>Done</code>、<code>Failed</code> 四种状态。解析数组类型时，也可能按需提前触发常量求值。</p>\n<pre data-language=\"rust\"><code>const N: usize = M;\nconst M: usize = 3;\nstruct Buffer { data: [i32; N] }</code></pre>\n<p>数组需要长度，于是查到 <code>N</code>；<code>N</code> 又依赖 <code>M</code>，沿着依赖先得到 3，再确定数组长度。若把 <code>M</code> 的初值改为 <code>N</code>，就会在尚未算完 <code>N</code> 时再次遇到它，形成常量依赖环。</p>\n<p class=\"key-idea\"><strong>先登记名字，才能沿依赖找到声明；求出值以后，才能把长度确定下来。</strong></p>\n<h2 id=\"section-6\">有限大小</h2>\n<p>第三步是类型关联的检查。这里主要处理的是结构体与数组的无限内联递归，注意到结构体和数组的布局需要在编译期确定为有限大小。引用、<code>Box</code> 和 <code>Vec</code> 能够隔断这种内联包含关系。函数递归调用发生在运行期，因此这里不检查函数是否会无限递归。具体检查的方式也是 <code>DFS</code>。</p>\n<pre data-language=\"rust\"><code>struct Bad { next: Bad } // 错误：直接包含自身\nstruct Tree { children: Vec&lt;Tree&gt; }</code></pre>\n<p>计算 <code>Bad</code> 的大小时，又必须放下一个完整的 <code>Bad</code>，这样会一直展开。<code>Tree</code> 中的 <code>Vec</code> 通过间接存储保存元素，能隔断内联包含；空的 <code>children</code> 也可以形成一棵具体的叶子树。</p>\n<h2 id=\"section-7\">派生能力</h2>\n<p>第四步是派生接口的检查，需要确认字段支持相应 <code>trait</code>，并检查 <code>Copy</code> 对 <code>Clone</code>、<code>Eq</code> 对 <code>PartialEq</code> 的显式依赖。</p>\n<p>对于 <code>Copy</code>，需要依据字段类型判断：共享引用支持 <code>Copy</code>，可变引用、<code>Box</code> 和 <code>Vec</code> 不支持 <code>Copy</code>，数组与结构体还需要递归检查其组成部分。因此，不能仅根据关联图成环就否定 <code>Copy</code>。</p>\n<p>需要区分的是物理成环与逻辑成环。第三步检查直接内联包含造成的无限大小问题；对于有指针隔断的逻辑递归，还需要按照具体 <code>trait</code> 规则检查。</p>\n<pre data-language=\"rust\"><code>#[derive(Clone, Copy)]\nstruct Pair { left: i32, right: i32 }</code></pre>\n<p>两个字段都支持相应能力，且显式列出了 <code>Copy</code> 所依赖的 <code>Clone</code>。若把字段改为 <code>Vec&lt;i32&gt;</code>，结构大小仍可确定，但 <code>Copy</code> 要求就无法满足。有限大小与派生能力要分别检查。</p>\n<h2 id=\"section-8\">入口与结果</h2>\n<p>最后检查 <code>main</code> 函数一定要合法存在，并满足无值参数、无泛型参数、返回 <code>Unit</code> 的要求。</p>\n<p>第一件事情完成后，我们得到：注册完毕的声明表、函数签名表、各个字段的类型、解析后的类型记录，以及常量的绑定与求值结果。</p>\n<p>本部分将依次展开各个步骤的细节。</p>\n",
+    "html": "<h2 id=\"section-1\">全局声明</h2>\n<p>Pass1 面向整份程序，先把类型、函数和常量登记起来。同一份全局登记表会供各个函数共同使用。即使一个函数写在调用处后面，检查调用时也能找到它。</p>\n<pre data-language=\"rust\"><code>const N: usize = 2;\nstruct Point { x: i32 }\nfn main() { let n = inc(1); }\nfn inc(x: i32) -&gt; i32 { x + 1 }</code></pre>\n<p><code>Point</code> 提供类型声明，<code>N</code> 提供常量声明，<code>inc</code> 和 <code>main</code> 提供函数声明。登记名字时先确定它们各自是谁，随后再解析字段、常量类型与函数签名。<code>inc</code> 的签名说明它接收一个 <code>i32</code>，返回 <code>i32</code>，于是 <code>main</code> 中的调用有了检查依据。</p>\n<p><code>impl</code> 中的成员还要带上所属类型。两个结构体都能有名为 <code>read</code> 的方法，查找时需要区分 <code>Point::read</code> 与另一类型的 <code>read</code>。类型名字和值名字也按各自的规则查重；局部同名绑定则在 Pass2 中按作用域处理。</p>\n<h2 id=\"section-2\">类型与常量</h2>\n<p>类型内部可以继续引用声明。数组长度尤其需要把名字查找和常量求值接起来。</p>\n<pre data-language=\"rust\"><code>struct Row { data: [i32; Row::N] }\nimpl Row { const N: usize = 2; }</code></pre>\n<p>登记 <code>Row::N</code> 后，字段类型里的路径就有了对应声明。不过，只有常量的名字和 <code>usize</code> 类型还不够。必须求出值 2，才能把字段确定为 <code>[i32; 2]</code>。因此 Pass1 会按依赖继续处理所需的信息，类型解析与常量求值可能相互穿插。</p>\n<p>引用则继续解析所指类型，<code>Box</code>、<code>Vec</code> 继续解析元素类型，<code>Self</code> 根据当前所属类型解释。函数参数与返回类型都确定后，签名才能完整供调用处使用。</p>\n<h2 id=\"section-3\">声明的成立条件</h2>\n<p>字段类型确定了，还需要确认对象可以用有限存储表示。字段若直接包含自身，会不断要求再放一个完整对象；引用或容器可以改变这种存放关系。</p>\n<pre data-language=\"rust\"><code>struct Bad { next: Bad } // 无法有限展开\n#[derive(Clone)]\nstruct Tree { children: Vec&lt;Tree&gt; }</code></pre>\n<p><code>Tree</code> 的对象大小可以有限确定，但 <code>derive(Clone)</code> 还需要沿字段检查克隆能力。大小检查与能力检查各自使用字段类型，判断的条件不同。常量也需要检查依赖是否成环，不能仅凭名字可查就认为能够求值。</p>\n<p>最后还要确认存在符合要求的顶层 <code>main</code>。名字、声明类型、所需常量值以及这些成立条件一起确定后，函数体中的使用才有可靠依据。Pass1 中遇到错误仍会尽量查看其他声明，已记录的错误会阻止程序进入正常代码生成。</p>\n<p class=\"key-idea\"><strong>登记名字只是起点，声明上的类型、值和限制还要逐项成立。</strong></p>\n",
     "toc": [
       {
         "id": "section-1",
-        "title": "全局登记表",
+        "title": "全局声明",
         "depth": 2
       },
       {
         "id": "section-2",
-        "title": "NodeID 与 SymbolID",
+        "title": "类型与常量",
         "depth": 2
       },
       {
         "id": "section-3",
-        "title": "名字分类与保护",
-        "depth": 2
-      },
-      {
-        "id": "section-4",
-        "title": "声明类型解析",
-        "depth": 2
-      },
-      {
-        "id": "section-5",
-        "title": "常量与依赖",
-        "depth": 2
-      },
-      {
-        "id": "section-6",
-        "title": "有限大小",
-        "depth": 2
-      },
-      {
-        "id": "section-7",
-        "title": "派生能力",
-        "depth": 2
-      },
-      {
-        "id": "section-8",
-        "title": "入口与结果",
+        "title": "声明的成立条件",
         "depth": 2
       }
     ],
-    "minutes": 7
+    "minutes": 3
   },
   {
     "id": "pass2",
@@ -145,98 +120,29 @@
       16
     ],
     "parent": "semantic",
-    "html": "<p class=\"key-idea\"><strong>语义分析器的第二次扫描做的事情是：检查表达式并且记录其事实</strong></p>\n<h2 id=\"section-1\">函数检查的入口</h2>\n<p>表达式检查主要发源于对函数的检查，函数是进入可执行代码检查的主要入口。</p>\n<p>这部分主要处理以下函数的性质：<code>scope</code> 的检查、参数的局部绑定、返回类型的检查以及循环上下文的维护。</p>\n<h2 id=\"section-2\">scope 符号表</h2>\n<p>这一部分会产生 <code>scope</code> 符号表，这个符号表随当前 <code>scope</code> 进入和退出，负责明确内部可见名字的类型、可变性与 <code>SymbolID</code>。</p>\n<pre data-language=\"rust\"><code>fn f(x: i32) {\n    {\n        let x = true;\n        let a = x;\n    }\n    let b = x;\n}</code></pre>\n<p>进入函数时，参数 <code>x</code> 加入参数所在的 <code>scope</code>；进入内层块后，新的 <code>x</code> 加入内层 <code>scope</code>。<code>a</code> 查到布尔值，退出内层后，<code>b</code> 又查到参数。全局登记表仍可共用，局部名字则随当前检查位置变化。</p>\n<h2 id=\"section-3\">参数与接收者</h2>\n<p>参数和接收者先决定函数体里有哪些可见名字，循环上下文再决定跳转会去哪里。</p>\n<p>参数类型在函数签名解析时确定，参数名字与局部 <code>Binding</code> 在函数体检查时绑定。尤其需要注意 <code>self</code> 的绑定。<code>self</code> 是方法中特有的接收者，需要定位其 <code>owner</code> 位置。对于 <code>self</code> 的处理可以理解为一种 <code>Desugaring</code>：把 <code>&amp;self</code> 理解为一个名字为 <code>self</code>、类型为 <code>&amp;Owner</code> 的形参。检查时可以直接建立这个 <code>Binding</code>。</p>\n<h2 id=\"section-4\">循环上下文</h2>\n<p>循环栈需要被特别维护，因为循环嵌套时需要明确 <code>break</code>、<code>continue</code> 的目标。<code>break</code> 退出最近的可用循环，<code>continue</code> 进入该循环的下一轮，所以需要显式维护一个栈，记录当前检查位置所处的循环上下文。</p>\n<p>循环体要求具有 <code>Unit</code> 或 <code>Never</code> 类型；整个 <code>loop</code> 表达式的结果类型由跳出它的 <code>break</code> 携带的值共同确定，这一点需要对齐。</p>\n<p>进一步地说，成功通过检查的表达式在编译期都应该有确定的类型。对于分支、循环等多路径结构，其结果类型应当能够统一，并考虑 <code>Never</code> 的兼容性。</p>\n<h2 id=\"section-5\">expected 与实际类型</h2>\n<p>接下来对表达式的检查，总体来说讨论了这样一个问题：表达式的 <code>expected</code> 与实际推导结果能否对齐。</p>\n<p>注意到，在 <code>AST</code> 的 <code>Expr</code> 层级内部存在进一步的递归，表达式已经通过父子关系组织起来。在语义上，父节点在上下文明确时，会对子节点提出一个期望 <code>expected</code>，表示子节点应当返回怎样的 <code>type</code>；缺少 <code>expected</code> 时，则需要先推导子节点的实际类型。</p>\n<p>我们检查的事情就是这个 <code>expected</code> 是否与真实情况符合。</p>\n<pre data-language=\"rust\"><code>fn take(x: u32) {}\nfn main() {\n    take(1);\n    take(true); // 错误：bool 无法满足 u32\n}</code></pre>\n<p>签名给实参提出 <code>u32</code> 的 <code>expected</code>。整数 1 没有后缀，可以按这个期望确定类型；<code>true</code> 固定为 <code>bool</code>，需要保留这个实际结果，再说明它与参数要求不匹配。</p>\n<p>当然，这个检查不完全机械，在差异发生时需要考虑是否成立隐式转换。</p>\n<h2 id=\"section-6\">表达式事实表</h2>\n<p>这个检查除了判断能否匹配，还需维护一张表达式事实表。它用 <code>NodeID</code> 找到表达式的事实，描述当前表达式的类型、<code>place</code> 属性、可变权限、关联声明以及隐式调整。</p>\n<p>需要与之区分的是 <code>Pass1</code> 中维护的全局登记表，以及 <code>Pass2</code> 中维护的 <code>scope</code> 符号表，这些表通过名字查找相应声明或绑定。</p>\n<pre data-language=\"rust\"><code>let x: i32 = 1;\nlet a = x;\nlet b = x;</code></pre>\n<p>名字查找让两处 <code>x</code> 找到同一声明，表达式事实表则分别保存这两次使用的结果。即使离开当前 <code>scope</code>，这些按 <code>NodeID</code> 保存的结论仍可供后面使用。</p>\n<p class=\"key-idea\"><strong>查找表回答当前能找到谁，表达式事实表留下每个节点已经查明的结果。</strong></p>\n<p>接下来讨论如何进行检查。</p>\n<h2 id=\"section-7\">基础值与聚合值</h2>\n<p>首先检查基础值与聚合值：</p>\n<ul>\n<li><p><strong>字面量</strong>：整数依次依据后缀、<code>expected</code>、默认 <code>i32</code> 的顺序确定类型，并检查整数范围。布尔值与 <code>Unit</code> 具有各自固定的类型。</p>\n</li>\n<li><p><strong><code>path</code></strong>：首先需要作 <code>desugar</code>，将 <code>Self</code> 展开。然后一个重要的设计是，在 <code>Pass1</code> 中，对于关联路径，我们将拼接名字作为整体登记进哈希表，在这里通过平均O(1)的哈希查询检查它是否存在；路径拼接与字符串哈希还需要处理路径内容。单段名字优先查询局部 <code>scope</code>。</p>\n</li>\n<li><p><strong><code>array</code></strong>：需要检查元素类型与编译期长度。空数组需要 <code>expected</code> 提供元素类型，重复数组的次数需要是编译期常量；重复次数大于1时，元素需要支持 <code>Copy</code>。</p>\n</li>\n<li><p><strong><code>struct</code></strong>：重点检查字段命名是否合法，包括未知、重复和缺失字段，并检查每个字段值是否符合声明类型。</p>\n</li>\n</ul>\n<h2 id=\"section-8\">块、分支与循环</h2>\n<p>然后检查结构控制部分：</p>\n<ul>\n<li><strong><code>block</code></strong>：<code>block</code> 本身是表达式，内部包含 <code>Stmt</code>，通过循环依次检查 <code>Stmt</code>，并根据尾表达式确定结果类型。进入块时压入 <code>scope</code>，离开块时弹出。最后一个无分号表达式接收块的 <code>expected</code>，普通带分号表达式的值被丢弃；当前实现还对末尾 <code>Never</code> 表达式作了处理。</li>\n</ul>\n<p>需要强调的是，对于 <code>let</code> 语句，<strong>先检查初值，再登记新名字</strong>，这样才能让遮蔽前后的名字按正确顺序生效。在 <code>let x=x+1</code> 中，右侧<code>x</code>应当查找此前已经可见的声明；没有已有声明时才报告未解析名字。</p>\n<pre data-language=\"rust\"><code>let x = 1;\nlet x = x + 1;\nlet y = x;</code></pre>\n<p>第二行的初值先使用第一行的 <code>x</code>。初值检查结束后，新绑定才生效，因此第三行查到的是第二行的声明。若先登记新名字，第二行的右侧就会找错对象。</p>\n<ul>\n<li><p><strong><code>loop</code></strong>：没有 <code>break</code> 时，循环类型为 <code>Never</code>；<code>break;</code> 携带 <code>Unit</code>。检查时优先选择 <code>expected</code>，然后考虑第一个收集到的 <code>break</code> 值类型，各个 <code>break</code> 需要能够适配到这个结果类型。</p>\n</li>\n<li><p><strong><code>if</code></strong>：关键在于是否有 <code>else</code>。有 <code>else</code> 时优先考虑将 <code>else</code> 适配为 <code>then</code> 的类型，再考虑反方向；当有分支发散时，优先采用另一分支的类型。没有 <code>else</code> 时，为了让<code>cond</code>为 <code>false</code> 的路径也能统一，<code>then</code> 需要满足 <code>Unit</code> 或 <code>Never</code>，整个 <code>if</code> 返回 <code>Unit</code>。条件本身需要是 <code>bool</code>。</p>\n</li>\n<li><p><strong><code>while</code></strong>：条件需要是 <code>bool</code>，循环体要求 <code>Unit</code> 或 <code>Never</code>，整个 <code>while</code> 返回 <code>Unit</code>，<code>break</code> 不能携带非 <code>Unit</code> 结果。检查 <code>while</code> 条件时，当前实现暂时隔离外层循环上下文。</p>\n</li>\n<li><p><strong><code>break</code>/<code>continue</code>/<code>return</code></strong>：<code>break</code> 与 <code>continue</code> 需要合法的循环上下文；<code>break</code> 登记携带值的类型，<code>continue</code> 不贡献循环结果。<code>return</code> 按照当前函数返回类型检查携带值。这三类表达式自身都具有 <code>Never</code> 类型。</p>\n</li>\n</ul>\n<h2 id=\"section-9\">运算与写权限</h2>\n<p>然后检查运算与赋值部分：</p>\n<ul>\n<li><p><strong><code>unary</code></strong>：这里比较特殊的是写权限的检查与多重引用。写权限检查需要确认当前操作数可写，且没有受到 <code>access_locked</code> 限制；这个限制来自当前访问路径中的共享引用或容器规则。借用语境下的 <code>&amp;&amp;</code> 对应 <code>&amp;(&amp;...)</code>，外层引用不可变。显式解引用只接受引用或 <code>Box</code>，负号和取反还需要检查操作数类型。</p>\n</li>\n<li><p><strong><code>binary</code></strong>：需要按运算符检查操作数类型，逻辑运算要求 <code>bool</code>，算术与移位等具有各自的整数约束。需要特别注意 <code>PartialEq</code>，相等比较依赖这个能力。</p>\n</li>\n<li><p><strong><code>assign</code></strong>：这个表达式返回 <code>Unit</code>。左侧类型给出对右侧的 <code>expected</code>；左侧还必须是可写的 <code>place</code>，既能定位到存储位置，又允许写入。复合赋值还需要检查对应的标量运算条件。</p>\n</li>\n<li><p><strong><code>cast</code></strong>：所有转换都需要被显式规定，当前支持整数之间转换，以及 <code>bool</code> 到整数的转换。</p>\n</li>\n</ul>\n<pre data-language=\"rust\"><code>let mut x = 1;\nlet r = &amp;mut x;\nlet s = &amp;r;\n**s = 2; // 错误：访问经过共享引用</code></pre>\n<p>沿 <code>s</code> 访问时，外层共享引用已经限制了写入。里面虽然还带着可变引用，也不能恢复沿这条路径修改整数的权限。最终指向什么类型、是否定位到存储位置、沿途是否允许写入，需要一起看。</p>\n<h2 id=\"section-10\">函数调用</h2>\n<p>最后检查调用与存储访问：</p>\n<ul>\n<li><strong><code>call</code></strong>：这是一件很复杂的事情，主要讨论的是函数签名。</li>\n</ul>\n<p>首先需要推导被调用者是否为函数。确定调用以后，需要把被调用者的 <code>SymbolID</code> 和调用目标记到表达式事实中。</p>\n<p>检查类型泛型的限制，当前范围中不支持除了 <code>Box</code> 和 <code>Vec</code> 以外的用户类型泛型。</p>\n<p>检查内建I/O函数，这是编译器直接认识、在 <code>Runtime</code> 中处理输入输出的函数。</p>\n<p>确定关联函数的完整签名。对于带 <code>self</code> 的关联函数显式调用，还需要把接收者作为参数检查。</p>\n<p>至此我们可以进行签名检查：</p>\n<ul>\n<li><p>首先校验参数个数是否正确，立即记录错误，并继续下行收集更多错误。</p>\n</li>\n<li><p>提取参数的类型期望。</p>\n</li>\n<li><p>推导实参在该上下文中的实际类型。</p>\n</li>\n<li><p>检查参数的可转换性，以及可变引用参数的访问权限。</p>\n</li>\n</ul>\n<p>检查内置容器 <code>Box</code>、<code>Vec</code> 的构造函数与关联接口，例如 <code>new</code>、<code>push</code> 等。注意 <code>Box</code> 和 <code>Vec</code> 的实现不在这里，这里将它们当作具有特权接口的容器。</p>\n<h2 id=\"section-11\">方法调用</h2>\n<ul>\n<li><strong><code>method</code></strong>：所谓方法调用，就是给一个具体对象调用方法，例如 <code>x.foo()</code>。这个对象称为接收者。</li>\n</ul>\n<p>对接收者进行层层解引用，取得用于方法查找的基础类型。</p>\n<p>检查器记录先前解引用的动作，再根据方法签名需要追加借用。这两件事情分开做，是因为在解引用时还不知道最终采用哪一种接收者形式。</p>\n<p>对于接收者，这里主要处理两类匹配：</p>\n<ul>\n<li><p>内置容器的特权方法匹配。</p>\n</li>\n<li><p>自定义结构体的方法匹配。</p>\n</li>\n</ul>\n<p>随后进行函数签名匹配。要求 <code>&amp;mut self</code> 的方法需要可写接收者，没有 <code>self</code> 的关联函数不能通过点语法调用。</p>\n<pre data-language=\"rust\"><code>struct Counter { value: i32 }\nimpl Counter {\n    fn read(&amp;self) -&gt; i32 { self.value }\n    fn add(&amp;mut self) { self.value += 1; }\n}\nfn main() {\n    let c = Counter { value: 0 };\n    c.read();\n    c.add(); // 错误：c 无法提供可写接收者\n}</code></pre>\n<p>两个方法属于同一结构体，接收者要求却不同。<code>read</code> 只需要共享借用，<code>add</code> 需要可变借用。找到方法以后，还要继续按签名确认接收者权限。</p>\n<h2 id=\"section-12\">字段与下标</h2>\n<ul>\n<li><strong><code>field</code></strong>：这是对字段访问的检查。<code>path</code> 检查关注名字对应哪个声明，<code>field</code> 检查关注接收者类型是否具有这个字段，以及访问权限是否成立。</li>\n</ul>\n<p>重点在于可变性的穿透：穿过共享引用以后，访问会被锁定；后续遇到可变引用也不能恢复写权限。但不可变绑定保存的 <code>&amp;mut T</code>，仍可以提供对 <code>T</code> 的可写访问。</p>\n<ul>\n<li><strong><code>index</code></strong>：这是对下标的特别讨论，同样要考虑类型匹配与可变性的穿透。下标需要是 <code>usize</code>，容器需要是数组或 <code>Vec</code>，结果具有元素类型及 <code>place</code> 属性。通过不可写 <code>Vec</code> 访问元素时，还会附加访问锁定。</li>\n</ul>\n<h2 id=\"section-13\">作用域、类型与权限</h2>\n<p>以上就是检查的主要对象。</p>\n<p>逻辑关系大概可以这样梳理。从 <code>AST</code> 的角度来看，<code>Crate</code> 包含 <code>Item</code>，<code>Struct</code>、<code>Function</code> 等构成顶层声明单元，然后往下递归：函数包含块表达式，块内部由 <code>Stmt</code> 构成，<code>Stmt</code> 再包含初始化表达式或普通 <code>Expr</code>。</p>\n<p>而块本身也是表达式，因此 <code>Expr</code> 中还可以嵌套块、分支与循环，形成递归结构。函数调用与方法调用则结合 <code>Pass1</code> 确定的签名进行检查。</p>\n<p>在分析器中，有几件事情贯穿始终：</p>\n<ul>\n<li><p><strong>作用域控制</strong>：用 <code>scope</code> 栈维护可见名字，用循环栈维护跳转所属的循环。</p>\n</li>\n<li><p>表达式 <code>expected</code> 与实际事实的 <code>match</code> 检查。</p>\n</li>\n<li><p><strong>各种权限</strong>：<code>place</code> 属性、可写权限与可写性的穿透。</p>\n</li>\n<li><p>解引用与路径展开。</p>\n</li>\n<li><p><strong>错误记录与恢复</strong>：尽量继续检查其他节点；存在错误时，阻止进入正常代码生成。</p>\n</li>\n</ul>\n<h2 id=\"section-14\">语义结果的组成</h2>\n<p>然后我们需要明确分析器最后保存了哪些内容：</p>\n<p><code>Symbols</code>：由两个阶段共同完成。<code>Pass1</code> 登记顶层声明、关联项和字段，<code>Pass2</code> 登记参数和局部变量，记录其 <code>SymbolID</code>、名字、类别及 <code>owner</code> 关系。</p>\n<p><code>Expressions</code>：主要在 <code>Pass2</code> 的表达式检查过程中确定，也包括 <code>Pass1</code> 常量求值产生的表达式事实，记录类型、<code>place</code>、权限、关联 <code>SymbolID</code>、调用目标与隐式调整。</p>\n<p><code>Resolved_types</code>：<code>Pass1</code> 解析声明中的类型，<code>Pass2</code> 遇到 <code>let</code> 类型标注、<code>cast</code> 目标和容器类型实参等内容时继续补充，记录类型语法节点 <code>NodeID</code> 与语义类型的对应关系。</p>\n<p><code>Constants</code>：主要由 <code>Pass1</code> 完成依赖解析和求值，最终记录已完成求值的常量 <code>SymbolID</code> 与对应的32位值。</p>\n<p>这些结果汇总为 <code>SemanticResult</code>，与 <code>AST</code> 一起交给后续 <code>lowering</code>。</p>\n",
+    "html": "<h2 id=\"section-1\">函数体中的名字</h2>\n<p>Pass2 按函数检查执行内容。函数签名已经说明参数类型和返回要求，进入函数体后，参数成为局部绑定，随后出现的 <code>let</code> 再逐条加入当前作用域。</p>\n<pre data-language=\"rust\"><code>fn inc(x: i32) -&gt; i32 {\n    let y = x + 1;\n    y\n}</code></pre>\n<p>检查初值 <code>x + 1</code> 时，<code>x</code> 找到参数声明；初值检查完成后，<code>y</code> 才能被后面的语句使用。末尾的 <code>y</code> 提供函数体的结果，仍要满足签名中的 <code>i32</code>。进入内层块会增加一层查找范围，离开后恢复外层；同名绑定的生效顺序就在这个过程中确定。</p>\n<p>函数体还可能包含循环。<code>break</code> 和 <code>continue</code> 需要知道所在循环，<code>return</code> 需要知道当前函数的结果要求。这些信息与局部名字一起构成检查表达式时的上下文。</p>\n<h2 id=\"section-2\">类型要求的传递</h2>\n<p>表达式的外层经常已经知道需要什么类型。这个要求称为 <code>expected</code>。例如函数签名规定实参类型，结构体声明规定字段初值类型，带标注的 <code>let</code> 规定初值类型。</p>\n<pre data-language=\"rust\"><code>fn take(x: u32) {}\nfn main() {\n    take(1);\n    take(true); // 实参类型不符\n}</code></pre>\n<p>第一个调用可以用参数的 <code>u32</code> 要求确定整数 1 的类型。第二个调用也提出同样要求，但 <code>true</code> 自身具有 <code>bool</code> 类型，因而无法匹配。要求沿表达式结构传递，实际结论又从孩子返回整体；具体传给哪些孩子，要看表达式的形式。</p>\n<p>数组把元素要求交给各个元素，块从尾部取得结果，分支与循环还要考虑哪些路径正常结束。类型有差异时，部分位置允许隐式借用等调整，这些步骤需要随检查结果保留。</p>\n<h2 id=\"section-3\">访问与调用</h2>\n<p>有些操作还会修改已有的值。此时除了类型相符，还要确认访问允许写入。</p>\n<pre data-language=\"rust\"><code>struct Point { x: i32 }\nimpl Point {\n    fn read(&amp;self) -&gt; i32 { self.x }\n    fn bump(&amp;mut self, d: i32) { self.x += d; }\n}\nfn main() {\n    let p = Point { x: 1 };\n    let n = p.read();\n    p.bump(1); // p 的绑定不可写\n}</code></pre>\n<p><code>read</code> 需要共享接收者，<code>bump</code> 需要可变接收者。两次调用都能找到方法，也都能得到明确签名，但接收者要求不同。字段、下标、借用和赋值会继续遇到这种访问问题，因此需要保留从对象到内部位置的访问限制。</p>\n<h2 id=\"section-4\">检查结果</h2>\n<p>每次名字使用都会确认它对应哪个声明，每个表达式都会得到自己的类型与使用结论。调用还留下目标及隐式调整；类型标注留下解析结果。局部作用域退出以后，这些按节点保存的信息仍然存在，后续处理可以直接使用。</p>\n<p class=\"key-idea\"><strong>Pass2 沿着函数体逐项检查，再把每次使用已经确认的含义留在相应节点上。</strong></p>\n<p>理解局部上下文和类型要求后，字面量、构造、控制流、运算与调用就可以逐类展开。它们共用这些依据，同时各自规定孩子怎样参与检查、整体怎样得到结果。</p>\n",
     "toc": [
       {
         "id": "section-1",
-        "title": "函数检查的入口",
+        "title": "函数体中的名字",
         "depth": 2
       },
       {
         "id": "section-2",
-        "title": "scope 符号表",
+        "title": "类型要求的传递",
         "depth": 2
       },
       {
         "id": "section-3",
-        "title": "参数与接收者",
+        "title": "访问与调用",
         "depth": 2
       },
       {
         "id": "section-4",
-        "title": "循环上下文",
-        "depth": 2
-      },
-      {
-        "id": "section-5",
-        "title": "expected 与实际类型",
-        "depth": 2
-      },
-      {
-        "id": "section-6",
-        "title": "表达式事实表",
-        "depth": 2
-      },
-      {
-        "id": "section-7",
-        "title": "基础值与聚合值",
-        "depth": 2
-      },
-      {
-        "id": "section-8",
-        "title": "块、分支与循环",
-        "depth": 2
-      },
-      {
-        "id": "section-9",
-        "title": "运算与写权限",
-        "depth": 2
-      },
-      {
-        "id": "section-10",
-        "title": "函数调用",
-        "depth": 2
-      },
-      {
-        "id": "section-11",
-        "title": "方法调用",
-        "depth": 2
-      },
-      {
-        "id": "section-12",
-        "title": "字段与下标",
-        "depth": 2
-      },
-      {
-        "id": "section-13",
-        "title": "作用域、类型与权限",
-        "depth": 2
-      },
-      {
-        "id": "section-14",
-        "title": "语义结果的组成",
+        "title": "检查结果",
         "depth": 2
       }
     ],
-    "minutes": 15
-  },
-  {
-    "id": "extension",
-    "number": "附",
-    "title": "扩展与附录",
-    "description": "扩展讨论补充语言能力与矩阵计算的使用前提。",
-    "chapters": [
-      17,
-      18
-    ],
-    "html": "<h2 id=\"section-1\">语言扩展与矩阵附录</h2>\n<p>前两章沿当前语言范围讨论建树和语义检查。这里接着看完整 Rust 中的模式、泛型和约束，说明这些能力还需要补充哪些信息；最后保留对话中的矩阵乘法讨论。</p>\n<p>扩展例子会标明适用范围。阅读时可以先把前面已经成立的规则带过来，再看新增写法对这些规则提出了什么要求。</p>\n",
-    "toc": [
-      {
-        "id": "section-1",
-        "title": "语言扩展与矩阵附录",
-        "depth": 2
-      }
-    ],
-    "minutes": 1
+    "minutes": 3
   }
 ]

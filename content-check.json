@@ -1,13 +1,13 @@
 {
-  "articles": 61,
-  "overviews": 18,
-  "bodyArticles": 43,
-  "outlinePoints": 217,
-  "legacyLinks": 298,
-  "codeExamples": 254,
-  "articlesWithContrasts": 42,
-  "sectionHeadings": 156,
-  "minOverviewCharacters": 846,
-  "maxProseCharacters": 2229,
+  "articles": 52,
+  "overviews": 16,
+  "bodyArticles": 36,
+  "outlinePoints": 200,
+  "legacyLinks": 277,
+  "codeExamples": 213,
+  "articlesWithContrasts": 35,
+  "sectionHeadings": 147,
+  "minOverviewCharacters": 814,
+  "maxProseCharacters": 2195,
   "errors": []
 }
